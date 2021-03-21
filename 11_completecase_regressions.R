@@ -42,7 +42,7 @@ mae2 = function(actual, predicted, level=.95){
   )
 }
 
-mergeddat = read_csv("merged_iwpc_latinos_brazil_completecase.csv")
+mergeddat = read_csv("../merged_iwpc_ULLAcc.csv")
 
 ###########################################################
 #####################DATA##################################
@@ -53,12 +53,13 @@ mergeddat = mergeddat %>%
          sqrtdose = sqrt(dosewk),
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing", "Mixed/NA", "Black"), labels = c("white", "Asian", "Black or African American", "Mixed or Missing", "Mixed or Missing", "Black or African American")),
          vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing"))) %>% 
-  mutate_at(.vars= c("cyp", "amio", "ei"),.funs = as_factor)
+  mutate_at(.vars= c("cyp", "amio", "ei"),.funs = as_factor) %>% 
+  dplyr::select(-country)
 
 
 train = mergeddat %>% sample_frac(.7) %>% mutate(train = 1) 
 mergeddat$train = if_else(mergeddat$X1 %in% train$X1, 1, 0)
-test = mergeddat %>% filter(train == 0)
+
 
 '%nin%' <-Negate('%in%')
 
@@ -153,8 +154,7 @@ fitOneSet <- function(){
                     data = train)
   
   
-  test$pred_svm_iwpc =stats::predict(OptModelsvm,test)
-  
+  test$pred_svm_iwpc =stats::predict(OptModelsvm,test)  
   
   R2_svm_iwpc = 1 - (sum((test$pred_svm_iwpc^2 - test$dosewk) ^2)/sum((test$dosewk - mean(test$dosewk)) ^2))
   
@@ -253,7 +253,7 @@ fitOneSet <- function(){
     as.data.frame() %>% 
     rownames_to_column("name") %>% 
     dplyr::select(name, MAE = V1, lower, upper) %>% 
-    mutate(name = factor(name, labels = c("IWPC", "IWPCV", "IWPC_SVM", "IWPC_BART", "IWPC_MARS")))
+    mutate(name = factor(name, levels = c("iwpc", "iwpcvars", "svm_iwpc", "bart_iwpc", "mars_iwpc"), labels = c("IWPC", "IWPCV", "IWPC_SVM", "IWPC_BART", "IWPC_MARS")))
   
   resultsdat = test %>% 
     pivot_longer(cols = starts_with("pred")) %>% 
@@ -308,10 +308,12 @@ dat2= dat %>%
   summarise(prop = median(prop),
             MAE = median(MAE),
             lower= median(lower),
-            upper = median(upper))
+            upper = median(upper))%>% 
+  unite("CI", lower:upper , sep = "-") %>% 
+  unite("MAE (95% CI)", MAE:CI, sep = "(")
 
 
-#write_csv(dat2, "dats_completecase.csv" )
+#write_csv(dat2, "../dats_completecase.csv" )
 ### use same colors as full plot
 library(scales)
 show_col(hue_pal()(9))
@@ -344,5 +346,5 @@ MAE_wilcox = as.data.frame(dat) %>%
 
 
 wilcox_results_Merged = rbind(prop_wilcox, MAE_wilcox)
-  write_csv(wilcox_results_Merged, "wilcox_results_Merged_completecase.csv" )
+  write_csv(wilcox_results_Merged, "../wilcox_results_Merged_completecase.csv" )
 

@@ -13,7 +13,7 @@ library(naniar)
 ## 2.1 
 iwpc <- read_excel("Q:/PharmPractice/Karnes Workgroup/WARFARIN PGX/ANALYSIS/IWPC/PS206767-553247439.xls",
                    sheet = "Subject Data")
-iwpc = readxl::read_excel(path = path.expand("PS206767-553247439.xls"),
+iwpc = readxl::read_excel(path = path.expand("../PS206767-553247439.xls"),
                           sheet = 'Subject Data')
               
 
@@ -365,7 +365,7 @@ iwpc_df$race = factor(iwpc_df$race, levels = c("white", "Asian",
 
 
 #### write data 
-# write.csv(iwpc_df, file = "iwpc_df.csv")
+# write.csv(iwpc_df, file = "../iwpc_df.csv")
 
 ### table one ####
 tableonedat = iwpc_df %>% 

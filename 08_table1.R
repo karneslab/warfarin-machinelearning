@@ -4,35 +4,46 @@ library(tidyverse)
 
 set.seed(18)
 
-mergeddat = read_csv("~/Documents/IWPC/merged_iwpc_latinos_brazil.csv") 
-
-mergeddat = mergeddat %>% 
-  mutate_if(is_character, as_factor) %>% 
-  mutate_at(.vars = c("site", "sex", "amio", "ei", "target", "smoke", "diabetes", "statin", "aspirin"), .funs = as_factor) %>% 
-  mutate(
-    dosegroup = case_when(
-      dosewk <= 21 ~  "low",
-      dosewk >21 & dosewk < 49 ~ "intermediate",
-      dosewk >= 49 ~ "high"
-    )) %>% 
-  mutate(dosegroup = factor(dosegroup),
-         target= if_else(target == "2.25"| target == "2", "2.5", as.character(target)),
-         race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing", "Mixed/NA", "Black"), labels = c("white", "Asian", "Black or African American", "Mixed or Missing", "Mixed or Missing", "Black or African American")),
-         vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing"))) %>% 
-  mutate(target = as.factor(target),
-         sqrtdose = sqrt(dosewk),
-         logdose = log(dosewk),
-         cohort = if_else(site %in% c("22","23","24","25","26", "27"), "ULLA","IWPC"))
-
-train = mergeddat %>% sample_frac(.7) %>% mutate(train = 1) 
-mergeddat$train = if_else(mergeddat$X1 %in% train$X1, 1, 0)
-
-tableonedat = mergeddat %>% 
+## load and prep data
+latinos = read_csv("../ULLA.csv") %>% 
+  mutate(sqrtdose = sqrt(dosewk),
+         race = factor(race, levels = c("white", "Black or African American", "Mixed or Missing", "Black"), labels = c("white",  "Black or African American", "Mixed or Missing", "Black or African American")),
+         vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing")),
+         indication = factor(indication, levels = c("AF", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA"), labels = c("AFIB", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA")),
+         race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"))) %>% 
+  mutate_at(.vars = c("site", "sex", "amio", "ei", "smoke", "diabetes", "statin",
+                      "aspirin", "cyp", "indication", "country", "ethnicity"), .funs = factor) %>% 
   dplyr::select(age,height,weight,
-                dosewk,dosegroup,
+                dosewk,
+                cyp,vkor,
+                race, ethnicity, site)
+
+iwpc = read_csv("../iwpc_df.csv") %>% 
+  mutate( vkor = factor(vkor, levels = c("G/G", "A/G", "A/A", "Missing"),
+                        labels = c("GG", "AG", "AA", "NA")),
+          sqrtdose = sqrt(dosewk),
+          target = if_else(target %in% c("1.3", "1.75", "2"), "<2",
+                           if_else(target %in% c("2.2", "2.25", "2.3", "2.5", 
+                                                 "2.6", "2.75", "2.8"), "2-3",
+                                   if_else(target %in% c("3", "3.25", "3.5"), ">3", "Missing"))),
+          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"),
+                        labels = c("white",
+                                   "Asian",
+                                   "Black",
+                                   "Mixed/NA"))) %>% 
+  mutate_at(.vars = c("aspirin","amio","diabetes", "target", "site", "smoke","statin", "ei", "train","cyp", "dosegroup", "indication", "sex", "ethnicity"), .funs = as.factor) %>% 
+  mutate_at(.vars = c("X1", "ID"),
+            .funs = as.character) %>% 
+  filter(sex != "Missing")%>% 
+  dplyr::select(age,height,weight,
+                dosewk,
                 cyp,vkor,
                 race, ethnicity,
-                amio, ei, cohort)
+                site)
+
+tableonedat = full_join(iwpc, latinos) %>% 
+  mutate(cohort = if_else(site %in% c("22", "23", "24", "25", "26", "27", "28"), "ULLA", "IWPC")) %>% 
+  dplyr::select(-site)
 
 table1 = CreateTableOne(strata = "cohort", addOverall = F,data = tableonedat,
                         includeNA = F)

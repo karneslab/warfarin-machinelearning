@@ -43,14 +43,14 @@ mae2 = function(actual, predicted, level=.95){
   )
 }
 
-mergeddat = read_csv("merged_iwpc_latinos_brazil.csv")
+mergeddat = read_csv("../merged_iwpc_ULLA.csv")
 
 ###########################################################
 #####################DATA##################################
 ###########################################################
 
 mergeddat = mergeddat %>% 
-  mutate_at(.vars = c( "sex", "aspirin","vkor","cyp", "race","target", "amio", "diabetes", "site", "smoke", "statin", "ei", "ethnicity", "indication", "target"), .funs = as.factor) %>% 
+  mutate_at(.vars = c( "sex", "aspirin","vkor","cyp", "race", "amio", "diabetes", "site", "smoke", "statin", "ei", "ethnicity", "indication"), .funs = as.factor) %>% 
   mutate(
          dosegroup = case_when(
            dosewk <= 21 ~  "low",
@@ -63,8 +63,7 @@ mergeddat = mergeddat %>%
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing", "Mixed/NA", "Black"), labels = c("white", "Asian", "Black or African American", "Mixed or Missing", "Mixed or Missing", "Black or African American")),
          vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing")),
          ethnicity = factor(ethnicity, levels = c("not Hispanic or Latino", "Hispanic or Latino", "Unknown"))) %>% 
-  mutate(target = as.factor(target)) %>% 
-  dplyr::select(-site)
+  dplyr::select( -site, -country)
 
 
 train = mergeddat %>% sample_frac(.7) %>% mutate(train = 1) 
@@ -116,7 +115,7 @@ fitOneSet <- function(){
   
   #### IWPC LM 
   fit = (lm(data = train, 
-            sqrtdose ~ age + height + weight + vkor + cyp + race + 
+            sqrtdose ~ age + height + weight +vkor + cyp + race + 
               ei + amio))
   
   fit$coefficients <- c(5.6044, 
@@ -151,7 +150,7 @@ fitOneSet <- function(){
 
   #### IWPC VARIABLES
   
-  iwpcvars = lm(sqrtdose ~ age + height + weight + vkor + cyp + 
+  iwpcvars = lm(sqrtdose ~ age + height + weight + cyp+vkor  + 
                   race + ei + amio , 
                 data = train)
   
@@ -216,7 +215,7 @@ fitOneSet <- function(){
   
   
   #### Kitchen skin model 
-  newcovars = lm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei  + ethnicity +sex + smoke  + statin+ aspirin+ diabetes,data = train)
+  newcovars = lm(sqrtdose ~ age + height + weight +sex + cyp + vkor   +race  +ethnicity+ ei  + amio+ + statin + aspirin + indication + diabetes + smoke, data = train)
   
   test$pred_NLM = predict(newcovars, test)
   
@@ -272,46 +271,7 @@ fitOneSet <- function(){
   
   ################ results #################
   #########################################
-  resultsdat = test %>% 
-    mutate(resid_svm = pred_svm - sqrtdose,
-           resid_bart = pred_bart - sqrtdose,
-           resid_mars = pred_mars - sqrtdose,
-           resid_svm_iwpc = pred_svm_iwpc -sqrtdose,
-           resid_bart_iwpc = pred_bart_iwpc - sqrtdose,
-           resid_mars_iwpc = pred_mars_iwpc - sqrtdose,
-           resid_iwpccovars = pred.iwpcmodel -sqrtdose,
-           resid_iwpcvars = pred_iwpcvars - sqrtdose,
-           resid_newcovars= pred_NLM - sqrtdose,
-           off_svm = if_else((abs(pred_svm^2 - dosewk)/dosewk) > .2, 
-                             1, 0),
-           off_mars = if_else((abs(pred_mars^2 - dosewk)/dosewk) > .2,
-                              1,0),
-           off_bart =if_else((abs(pred_bart^2 - dosewk)/dosewk) > .2,
-                             1,0),
-           off_svm_iwpc = if_else((abs(pred_svm_iwpc^2 - dosewk)/dosewk) > .2, 
-                                  1, 0),
-           off_mars_iwpc = if_else((abs(pred_mars_iwpc^2 - dosewk)/dosewk) > .2, 
-                                   1, 0),
-           off_bart_iwpc = if_else((abs(pred_bart_iwpc^2 - dosewk)/dosewk) > .2, 
-                                   1, 0),
-           off_iwpc = if_else((abs(pred.iwpcmodel^2 - dosewk)/dosewk) > .2,
-                              1, 0),
-           off_iwpcvars = if_else((abs(pred_iwpcvars^2 - dosewk)/dosewk) > .2,
-                                  1, 0),
-           off_newlinear = if_else((abs(pred_NLM^2 - dosewk )/dosewk) > .2,1,0)) %>% 
-    pivot_longer(cols = starts_with("resid"), 
-                 names_to = "model",
-                 values_to = c("resid")) %>% 
-    pivot_longer(cols = starts_with("pred"),
-                 names_to = "type", 
-                 values_to = "pred") %>% 
-    dplyr::select(-type) %>% 
-    distinct(resid, .keep_all = T) 
-  
-  maedat = test %>% 
-    dplyr::select(starts_with("pred"), dosewk, dosegroup, ethnicity) %>% 
-    pivot_longer(cols = pred.iwpcmodel:pred_mars, values_to = "pred", names_to= "model") %>% 
-    group_by(ethnicity, dosegroup, model) 
+
   
   mae = cbind(iwpc = mae2(test$dosewk, test$pred.iwpcmodel)$mae,
               iwpcvars = mae2(test$dosewk, test$pred_iwpcvars)$mae,
@@ -343,7 +303,7 @@ fitOneSet <- function(){
     as.data.frame() %>% 
     rownames_to_column("name") %>% 
     dplyr::select(name, MAE = V1, lower, upper) %>% 
-    mutate(name = factor(name, labels = c("IWPC", "IWPCV", "IWPC_SVM", "IWPC_BART", "IWPC_MARS", "NLM", "SVM", "MARS", "BART")))
+    mutate(name = factor(name, levels = c("iwpc", "iwpcvars", "svm_iwpc", "bart_iwpc", "mars_iwpc", "newlinear", "svm", "mars", "bart"), labels = c("IWPC", "IWPCV", "IWPC_SVM", "IWPC_BART", "IWPC_MARS", "NLM", "SVM", "MARS", "BART")))
   
   resultsdat = test %>% 
     pivot_longer(cols = starts_with("pred")) %>% 
@@ -407,20 +367,23 @@ dat = do.call(rbind, lapply(1:100, function(x) fullReplicates[[x]][[4]] )) %>%
   as_data_frame()
 
 
-partials = do.call(rbind, lapply(79, function(x) unlist(fullReplicates[[x]][[2]] ))) %>% as_data_frame()
+partials = do.call(rbind, lapply(50, function(x) unlist(fullReplicates[[x]][[2]] ))) %>% as_data_frame()
 partials2 = round(partials, digits = 2)
 
-r2s = do.call(rbind,lapply(79, function(x) unlist(fullReplicates[[x]][[3]]))) %>% as.data.frame()
+r2s = do.call(rbind,lapply(50, function(x) unlist(fullReplicates[[x]][[3]]))) %>% as.data.frame()
 
-betas = do.call(rbind, lapply(79, function(x) do.call(rbind.data.frame,fullReplicates[[x]][[1]]))) %>% 
-  rownames_to_column() %>% 
-  mutate(Estimate = round(Estimate, digits = 2),
-         'Std. Error' = round(`Std. Error`, digits = 2))
-
+betas = do.call(rbind, lapply(50, function(x) do.call(rbind.data.frame,fullReplicates[[x]][[1]]))) %>% rownames_to_column()
+betas$Estimate = round(betas$Estimate, digits = 2)
+betas$`Std. Error` = round(betas$`Std. Error`, digits =2 )
 betas$call = paste(betas$Estimate,"±",betas$`Std. Error`)
-# write_csv(partials2, "partials_merged.csv" )
-# write_csv(r2s, "r2s_merged.csv" )
-# write_csv(betas, "betas_merged.csv" )
+betas$call = str_replace_all(string=betas$call, pattern=" ", repl="")
+betas$`Pr(>|t|)` = signif(betas$`Pr(>|t|)`, digits = 3)
+betas$`Pr(>|t|)` = gsub("e", "x10", betas$`Pr(>|t|)`)
+betas2 =betas %>% 
+  dplyr::select(rowname, call, p = `Pr(>|t|)`)
+# write_csv(partials2, "../partials_merged.csv" )
+# write_csv(r2s, "../r2s_merged.csv" )
+# write_csv(betas2, "../betas_merged.csv" )
 
 dat2 = dat %>% 
   filter(name %in% c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART")) %>% 
@@ -431,10 +394,12 @@ dats = dat2 %>%
   summarise(prop = median(prop),
             MAE = median(MAE),
             lower = median(lower),
-            upper = median(upper)) 
+            upper = median(upper)) %>% 
+  unite("CI", lower:upper , sep = "-") %>% 
+  unite("MAE (95% CI)", MAE:CI, sep = "(")
 
 
-# write_csv(dats, "dats_merged.csv" )
+# write_csv(dats, "../dats_merged.csv" )
 
 p2 = ggplot(dat2, aes(name, prop, color = name)) +
   geom_boxplot(width=.1, alpha = .1) + 
@@ -448,13 +413,13 @@ p2 = ggplot(dat2, aes(name, prop, color = name)) +
         legend.text = element_text(size = 20, color = "gray30"),
         legend.title = element_text(size = 22, color = "gray30"))+
   labs(x = "", y = " ", color = "Model")+
-  ylim(c(30,55))
+  ylim(c(40,54))
 
 ## yellow, orange, navy, light orange, gray
-pdf("fig1merged.pdf", width = 8, height = 5)
+# pdf("fig1merged.pdf", width = 8, height = 5)
 p2
 
-dev.off()
+# dev.off()
 
 friedman_test(prop ~ name |replicate, data = as.data.frame(dat))
 
@@ -464,24 +429,26 @@ prop_wilcox = as.data.frame(dat) %>%
 MAE_wilcox = as.data.frame(dat) %>%
   wilcox_test(MAE ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
-p5 = ggplot(dat, aes(name, MAE, color = name)) +
-  geom_boxplot(alpha =.1) +
-  geom_jitter(width = .2, alpha = .2) + 
-  theme_minimal()+
-  theme(legend.position = "none")+
-  labs(x = "", y = " ") +
-  ylim(7,11.5)
-p5
+# p5 = ggplot(dat, aes(name, MAE, color = name)) +
+#   geom_boxplot(alpha =.1) +
+#   geom_jitter(width = .2, alpha = .2) + 
+#   theme_minimal()+
+#   theme(legend.position = "none")+
+#   labs(x = "", y = " ") +
+#   ylim(7,11.5)
+# p5
 
  wilcox_results_Merged = rbind(prop_wilcox, MAE_wilcox)
-# write_csv(wilcox_results_Merged, "wilcox_results_Merged.csv" )
+# write_csv(wilcox_results_Merged, "../wilcox_results_Merged.csv" )
 
+ # save.image("~/Documents/IWPC/04_workspace.RData")
+ 
 ### put the plots together
 library(cowplot)
 
-fig1 = plot_grid(p3,p2, nrow = 1,rel_widths = 1:1, labels = c("A. ULLA (n = 1421)", "B. Merged (n = 6470)"), label_size = 20) 
-save_plot("fig1.png", fig1, base_width = 15, base_height = 8, bg = "transparent")
+fig1 = plot_grid(p3,p2, nrow = 1,rel_widths = 1:1, labels = c("A. ULLA (n = 1,591)", "B. Merged (n = 6,526)"), label_size = 20) 
+save_plot("../fig1.png", fig1, base_width = 15, base_height = 8, bg = "transparent")
 
 
-fig2 = plot_grid(p4,p5,p6, nrow = 1, labels = c("A. IWPC", "B. Merged", "C. ULLA")) 
-save_plot("figure2.png", fig2, base_width = 15, base_height = 8, bg = "transparent")
+# fig2 = plot_grid(p4,p5,p6, nrow = 1, labels = c("A. IWPC", "B. Merged", "C. ULLA")) 
+# save_plot("figure2.png", fig2, base_width = 15, base_height = 8, bg = "transparent")

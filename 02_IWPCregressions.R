@@ -33,6 +33,7 @@ confidence_interval <- function(vector, interval) {
   result <- c("lower" = vec_mean - error, "upper" = vec_mean + error)
   return(result)
 }
+
 mae2 = function(actual, predicted, level=.95){
   
   d = actual-predicted^2
@@ -43,7 +44,7 @@ mae2 = function(actual, predicted, level=.95){
 }
 
 ### load the data
-iwpc_df = read_csv("iwpc_df.csv")
+iwpc_df = read_csv("../iwpc_df.csv")
 
 iwpc_df= iwpc_df %>% 
   mutate( vkor = factor(vkor, levels = c("G/G", "A/G", "A/A", "Missing"),
@@ -415,9 +416,11 @@ dats = dat2 %>%
   summarise(prop = median(prop),
             MAE = median(MAE),
             lower = median(lower),
-            upper = median(upper)) 
+            upper = median(upper)) %>% 
+  unite("CI", lower:upper , sep = "-") %>% 
+  unite("MAE (95% CI)", MAE:CI, sep = "(")
 
-# write_csv(dats, "dats_iwpc.csv" )
+# write_csv(dats, "../dats_iwpc.csv" )
 
 p1 = ggplot(dat, aes(name, prop, color = name)) +
   geom_boxplot(width=.1, alpha = .1) + 
@@ -431,10 +434,10 @@ p1 = ggplot(dat, aes(name, prop, color = name)) +
         axis.title.y = element_text(size = 18, color = "gray30"),
         legend.text = element_text(size = 15, color = "gray30"),
         legend.title = element_text(size = 12, color = "gray30")) +
-  labs(x = "", y = "% Within 20%",
+  labs(x = "", y = "Percentage Within 20%",
        color = "Model") 
 
-pdf("figS1.pdf", width = 8, height = 5)
+pdf("../figS1.pdf", width = 8, height = 5)
 
 
 p1

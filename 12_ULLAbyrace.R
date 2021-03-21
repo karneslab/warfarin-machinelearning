@@ -46,7 +46,7 @@ mae2 = function(actual, predicted, level=.95){
 }
 
 ## load and prep data
-latinos = read_csv("~/Documents/IWPC/latinos.csv") %>% 
+latinos = read_csv("../ULLA.csv") %>% 
   mutate(sqrtdose = sqrt(dosewk),
          dosegroup = case_when(
            dosewk <= 21 ~  "low",
@@ -69,7 +69,7 @@ test = latinos %>% filter(train == 0 )
 
 
 latinosdf = latinos %>% 
-  dplyr::select(-X1, - ethnicity)
+  dplyr::select( - ethnicity, -target, -site)
 
 '%nin%' <-Negate('%in%')
 
@@ -132,7 +132,6 @@ fitOneSet <- function(){
                         -1.9206,
                         -2.3312,
                         -0.2188,
-                        -0.1092,
                         -0.2760,
                         -0.1032,
                         1.1816,
@@ -209,7 +208,7 @@ fitOneSet <- function(){
   
   
   #### Kitchen skin model 
-  newcovars = lm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+diabetes,data = train)
+  newcovars = lm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+diabetes + country,data = train)
   
   test$pred_NLM = predict(newcovars, test)
   
@@ -220,7 +219,7 @@ fitOneSet <- function(){
   ################ ML ######################
   
   
-  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+diabetes,data = train)
+  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+diabetes + country,data = train)
   
   
   test$pred_svm =stats::predict(OptModelsvm,test)
@@ -232,14 +231,14 @@ fitOneSet <- function(){
   ## Bayesian Additive Regression Trees (BART)
   
   x1 = train %>%
-    dplyr::select(c(vkor,cyp ,age  , weight  , target , amio  ,indication , height ,race  , ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke  ,statin,aspirin, diabetes, sex, country)) %>%
     as.data.frame()
   
   bart <- bartMachine(x1, train$sqrtdose, mem_cache_for_speed = F)
 
   
  testx = test %>% 
-    dplyr::select(c(vkor,cyp ,age  , weight  , target , amio  ,indication , height ,race  , ei  , smoke  ,statin, aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke  ,statin, aspirin, diabetes, sex,country)) %>%
     as.data.frame()
   
   test$pred_bart = predict(bart, testx)
@@ -250,7 +249,7 @@ fitOneSet <- function(){
   # Fit a basic MARS model
 
   
-  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+aspirin+ diabetes,data = train,
+  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+aspirin+ diabetes+ country,data = train,
                method = "earth",
                metric = "MAE"
   )
@@ -271,7 +270,6 @@ fitOneSet <- function(){
                         -0.2546,
                         0.0118,
                         0.0134,
-                        -0.6752,
                         0.4060,
                         0.0443,
                         1.2799,
@@ -283,44 +281,7 @@ fitOneSet <- function(){
   
   ################ results #################
   #########################################
-  resultsdat = test %>% 
-    mutate(resid_svm = pred_svm - sqrtdose,
-           resid_bart = pred_bart - sqrtdose,
-           resid_mars = pred_mars - sqrtdose,
-           resid_svm_iwpc = pred_svm_iwpc -sqrtdose,
-           resid_bart_iwpc = pred_bart_iwpc - sqrtdose,
-           resid_mars_iwpc = pred_mars_iwpc - sqrtdose,
-           resid_iwpccovars = pred.iwpcmodel -sqrtdose,
-           resid_iwpcvars = pred_iwpcvars - sqrtdose,
-           resid_newcovars= pred_NLM - sqrtdose,
-           resid_clinical = pred_clin - sqrtdose,
-           off_svm = if_else((abs(pred_svm^2 - dosewk)/dosewk) > .2, 
-                             1, 0),
-           off_mars = if_else((abs(pred_mars^2 - dosewk)/dosewk) > .2,
-                              1,0),
-           off_bart =if_else((abs(pred_bart^2 - dosewk)/dosewk) > .2,
-                             1,0),
-           off_svm_iwpc = if_else((abs(pred_svm_iwpc^2 - dosewk)/dosewk) > .2, 
-                                  1, 0),
-           off_mars_iwpc = if_else((abs(pred_mars_iwpc^2 - dosewk)/dosewk) > .2, 
-                                   1, 0),
-           off_bart_iwpc = if_else((abs(pred_bart_iwpc^2 - dosewk)/dosewk) > .2, 
-                                   1, 0),
-           off_iwpc = if_else((abs(pred.iwpcmodel^2 - dosewk)/dosewk) > .2,
-                              1, 0),
-           off_iwpcvars = if_else((abs(pred_iwpcvars^2 - dosewk)/dosewk) > .2,
-                                  1, 0),
-           off_newlinear = if_else((abs(pred_NLM^2 - dosewk )/dosewk) > .2,1,0),
-           off_clinical = if_else((abs(pred_clin^2-dosewk)/dosewk)>.2,1,0)) %>% 
-    pivot_longer(cols = starts_with("resid"), 
-                 names_to = "model",
-                 values_to = c("resid")) %>% 
-    pivot_longer(cols = starts_with("pred"),
-                 names_to = "type", 
-                 values_to = "pred") %>% 
-    dplyr::select(-type) %>% 
-    distinct(resid, .keep_all = T) 
-  
+ 
   
   mae_white = cbind(iwpc = mae2(test$dosewk[test$race == "white"], test$pred.iwpcmodel[test$race == "white"])$mae,
               iwpcvars = mae2(test$dosewk[test$race == "white"], test$pred_iwpcvars[test$race == "white"])$mae,
@@ -450,7 +411,8 @@ fullReplicates <- lapply(1:100, function(x){
 dat = do.call(rbind, fullReplicates) %>% 
   group_by(name,race) %>% 
   mutate(name = factor(name, levels = c("IWPC", "IWPCV","IWPC_SVM", "IWPC_MARS", "IWPC_BART", "NLM","SVM", "MARS", "BART", "CLINICAL"),
-                       labels = c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART", "CLINICAL")))
+                       labels = c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART", "CLINICAL"))) %>% 
+  as_data_frame()
 
  
 dat2 = dat %>% 
@@ -458,17 +420,19 @@ dat2 = dat %>%
   summarise(prop = mean(prop),
             MAE = mean(MAE),
             lower = mean(lower),
-            upper = mean(upper)) 
-#write_csv(dat2, "dats_ULLAbyrace.csv" )
+            upper = mean(upper)) %>% 
+  unite("CI", lower:upper , sep = "-") %>% 
+  unite("MAE (95% CI)", MAE:CI, sep = "(")
+#write_csv(dat2, "../dats_ULLAbyrace.csv" )
 
 hlinedat = dat %>% 
-  group_by(race) %>% 
+  # group_by(race) %>% 
   summarise(prop = median(prop))
 
 race_n <- c(
-  'white'="White (n = 895)",
-  'Black or African American'="Black or African American (n = 342)",
-  'Mixed or Missing'="Mixed or Missing (n = 184)"
+  'white'="White (n = 1,159)",
+  'Black or African American'="Black or African American (n = 293)",
+  'Mixed or Missing'="Mixed or Missing (n = 140)"
 )
 
 p3 = ggplot(dat, aes(name, prop, color = name)) +
@@ -489,14 +453,20 @@ p3 = ggplot(dat, aes(name, prop, color = name)) +
              color = "gray30") +
   scale_color_manual(values = c("#F8766D" ,"#D39200", "#93AA00", "#00BA38", "#00C19F" ,"#00B9E3" ,"#619CFF", "#DB72FB", "#FF61C3", "gray30"))
 
-pdf("fig2ulla_byrace.pdf", width = 8, height = 5)
+# pdf("../fig2ulla_byrace.pdf", width = 8, height = 5)
 
 p3
 
-dev.off()
+# dev.off()
 
+dat3 = dat %>% 
+  group_by(name, replicate) %>% 
+  summarise(prop = mean(prop)) %>% 
+  as_data_frame() %>% 
+  mutate(replicate = factor(replicate),
+         name = factor(name))
 
-friedman_test(prop ~ name |replicate, data = dat)
+friedman_test(prop ~ name |replicate, data = dat3)
 
 prop_wilcox = as.data.frame(dat) %>%
   group_by(race) %>% 
@@ -507,12 +477,12 @@ MAE_wilcox = as.data.frame(dat) %>%
   wilcox_test(MAE ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
 wilcox_results_ULLA = rbind(prop_wilcox, MAE_wilcox)
-write_csv(wilcox_results_ULLA, "wilcox_results_ULLA_byrace.csv" )
+write_csv(wilcox_results_ULLA, "../wilcox_results_ULLA_byrace.csv" )
 
 
 ### put the plots together
 library(cowplot)
 
 fig2 = plot_grid(p3, nrow = 1) 
-save_plot("figure2.png", fig2, base_width = 18, base_height = 8, bg = "transparent")
+save_plot("../figure2.png", fig2, base_width = 18, base_height = 8, bg = "transparent")
 

@@ -46,20 +46,14 @@ mae2 = function(actual, predicted, level=.95){
 }
 
 ## load and prep data
-latinos = read_csv("~/Documents/IWPC/latinos.csv") %>% 
+latinos = read_csv("../ULLA.csv") %>% 
   mutate(sqrtdose = sqrt(dosewk),
-         dosegroup = case_when(
-           dosewk <= 21 ~  "low",
-           dosewk >21 & dosewk < 49 ~ "intermediate",
-           dosewk >= 49 ~ "high"
-         ),
-         BSA = sqrt((height*weight)/3600),
          race = factor(race, levels = c("white", "Black or African American", "Mixed or Missing", "Black"), labels = c("white",  "Black or African American", "Mixed or Missing", "Black or African American")),
          vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing")),
          indication = factor(indication, levels = c("AF", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA"), labels = c("AFIB", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA")),
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"))) %>% 
-  mutate_at(.vars = c("site", "sex", "amio", "ei", "target", "smoke", "diabetes", "statin",
-                      "aspirin", "cyp", "indication", "dosegroup", "ethnicity"), .funs = factor) 
+  mutate_at(.vars = c("site", "sex", "amio", "ei", "smoke", "diabetes", "statin",
+                      "aspirin", "cyp", "indication", "country", "ethnicity"), .funs = factor) 
 
 
 
@@ -69,9 +63,11 @@ test = latinos %>% filter(train == 0 )
 
 
 latinosdf = latinos %>% 
-  dplyr::select(-X1, - ethnicity)
+  dplyr::select(-X1, - ethnicity, -site, -target)
 
 '%nin%' <-Negate('%in%')
+
+
 
 ##Randomize testing and training
 randTrainTesting<- function(data=latinosdf,colName="train"){
@@ -119,7 +115,7 @@ fitOneSet <- function(){
   
   #### IWPC LM 
   fit = (lm(data = train, 
-            sqrtdose ~ age + height + weight + vkor + cyp + race + 
+            sqrtdose ~ age + height + weight  +vkor+ cyp+race + 
               ei + amio))
   
   fit$coefficients <- c(5.6044, 
@@ -135,7 +131,6 @@ fitOneSet <- function(){
                         -1.9206,
                         -2.3312,
                         -0.2188,
-                        -0.1092,
                         -0.2760,
                         -0.1032,
                         1.1816,
@@ -150,9 +145,10 @@ fitOneSet <- function(){
   
   partialr2_iwpc =rsq.partial(fit)$partial.rsq
   summary_iwpc = summary(fit)$coefficients[,c(-3)]
+  r2_iwpc = summary(fit)$r.squared
   #### IWPC VARIABLES
   
-  iwpcvars = lm(sqrtdose ~ age + height + weight + vkor + cyp + 
+  iwpcvars = lm(sqrtdose ~ age + height + weight  + cyp + vkor+
                   race + ei + amio , 
                 data = train)
   
@@ -163,7 +159,7 @@ fitOneSet <- function(){
   
   partialr2_iwpcv =rsq.partial(iwpcvars)$partial.rsq
   summary_iwpcv = summary(iwpcvars)$coefficients[,c(-3)]
-  
+  r2_iwpcv = summary(iwpcvars)$r.squared
   ################ ML ######################
   
   
@@ -217,7 +213,7 @@ fitOneSet <- function(){
   
   
   #### Kitchen skin model 
-  newcovars = lm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train)
+  newcovars = lm(sqrtdose ~ age + height + weight + sex + cyp + vkor + race + country  +ei + amio+statin+ aspirin+ indication+diabetes + smoke ,data = train)
   
   test$pred_NLM = predict(newcovars, test)
   
@@ -226,10 +222,11 @@ fitOneSet <- function(){
   
   partialr2_nlm =rsq.partial(newcovars)$partial.rsq
   summary_nlm = summary(newcovars)$coefficients[,c(-3)]
+  r2_nlm = summary(newcovars)$r.squared
   ################ ML ######################
   
   
-  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train)
+  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + country+ ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train)
   
   
   test$pred_svm =stats::predict(OptModelsvm,test)
@@ -241,14 +238,14 @@ fitOneSet <- function(){
   ## Bayesian Additive Regression Trees (BART)
   
   x1 = train %>%
-    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  ,country, ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
     as.data.frame()
   
   bart <- bartMachine(x1, train$sqrtdose, mem_cache_for_speed = F)
   
   
   testx = test %>% 
-    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  ,country, ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
     as.data.frame()
   
   test$pred_bart = predict(bart, testx)
@@ -259,7 +256,7 @@ fitOneSet <- function(){
   # Fit a basic MARS model
   
   
-  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train,
+  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  +country+ ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train,
                method = "earth",
                metric = "MAE"
   )
@@ -272,46 +269,8 @@ fitOneSet <- function(){
   
   ################ results #################
   #########################################
-  resultsdat = test %>% 
-    mutate(resid_svm = pred_svm - sqrtdose,
-           resid_bart = pred_bart - sqrtdose,
-           resid_mars = pred_mars - sqrtdose,
-           resid_svm_iwpc = pred_svm_iwpc -sqrtdose,
-           resid_bart_iwpc = pred_bart_iwpc - sqrtdose,
-           resid_mars_iwpc = pred_mars_iwpc - sqrtdose,
-           resid_iwpccovars = pred.iwpcmodel -sqrtdose,
-           resid_iwpcvars = pred_iwpcvars - sqrtdose,
-           resid_newcovars= pred_NLM - sqrtdose,
-           off_svm = if_else((abs(pred_svm^2 - dosewk)/dosewk) > .2, 
-                             1, 0),
-           off_mars = if_else((abs(pred_mars^2 - dosewk)/dosewk) > .2,
-                              1,0),
-           off_bart =if_else((abs(pred_bart^2 - dosewk)/dosewk) > .2,
-                             1,0),
-           off_svm_iwpc = if_else((abs(pred_svm_iwpc^2 - dosewk)/dosewk) > .2, 
-                                  1, 0),
-           off_mars_iwpc = if_else((abs(pred_mars_iwpc^2 - dosewk)/dosewk) > .2, 
-                                   1, 0),
-           off_bart_iwpc = if_else((abs(pred_bart_iwpc^2 - dosewk)/dosewk) > .2, 
-                                   1, 0),
-           off_iwpc = if_else((abs(pred.iwpcmodel^2 - dosewk)/dosewk) > .2,
-                              1, 0),
-           off_iwpcvars = if_else((abs(pred_iwpcvars^2 - dosewk)/dosewk) > .2,
-                                  1, 0),
-           off_newlinear = if_else((abs(pred_NLM^2 - dosewk )/dosewk) > .2,1,0)) %>% 
-    pivot_longer(cols = starts_with("resid"), 
-                 names_to = "model",
-                 values_to = c("resid")) %>% 
-    pivot_longer(cols = starts_with("pred"),
-                 names_to = "type", 
-                 values_to = "pred") %>% 
-    dplyr::select(-type) %>% 
-    distinct(resid, .keep_all = T) 
   
-  maedat = test %>% 
-    dplyr::select(starts_with("pred"), dosewk, dosegroup) %>% 
-    pivot_longer(cols = pred.iwpcmodel:pred_mars, values_to = "pred", names_to= "model") %>% 
-    group_by( dosegroup, model) 
+
   
   mae = cbind(iwpc = mae2(test$dosewk, test$pred.iwpcmodel)$mae,
               iwpcvars = mae2(test$dosewk, test$pred_iwpcvars)$mae,
@@ -377,8 +336,12 @@ fitOneSet <- function(){
   
   summary2 = list(iwpc = summary_iwpc, iwpcv = summary_iwpcv, nlm= summary_nlm)
   
+  r2 = list(iwpc = r2_iwpc, iwpcv = r2_iwpcv, nlm = r2_nlm)
+  
+  
   attr(resultsdat2, "summary2") <- summary2
   attr(resultsdat2, "partialr2") <- partialr2
+  attr(resultsdat2, "r2") <- r2
   return(resultsdat2)
   
 }
@@ -388,15 +351,16 @@ fitOneSet <- function(){
 ###############################################
 #########FUNCTION FOR MULTIPLE RUNS###########
 ##############################################
-fullReplicates <- lapply(1:100, function(x){
+fullReplicates <- lapply(1:10, function(x){
   cat('\rreplicate=',x)
   k<-fitOneSet()
   list("summary2"=attr(k, "summary2"),
        "partialr2"=attr(k, "partialr2"),
+       "r2" = attr(k, "r2"),
        'stats'=cbind.data.frame('replicate'=x, k))
 })
 
-dat = do.call(rbind, lapply(1:100, function(x) fullReplicates[[x]][[3]] )) %>% 
+dat = do.call(rbind, lapply(1:100, function(x) fullReplicates[[x]][[4]] )) %>% 
   group_by(name) %>% 
   mutate(name = factor(name, levels = c("IWPC", "IWPCV","IWPC_SVM", "IWPC_MARS", "IWPC_BART", "NLM","SVM", "MARS", "BART"),
                        labels = c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART"))) %>% 
@@ -406,10 +370,21 @@ dat = do.call(rbind, lapply(1:100, function(x) fullReplicates[[x]][[3]] )) %>%
 partials = do.call(rbind, lapply(50, function(x) unlist(fullReplicates[[x]][[2]] ))) %>% as_data_frame()
 partials2 = round(partials, digits = 2)
 
-betas = do.call(rbind, lapply(50, function(x) do.call(rbind.data.frame,fullReplicates[[x]][[1]]))) %>% rownames_to_column()
+r2s = do.call(rbind,lapply(50, function(x) unlist(fullReplicates[[x]][[3]]))) %>% as.data.frame()
 
-# write_csv(partials2, "partials_ULLA.csv" )
-# write_csv(betas, "betas_ULLA.csv" )
+betas = do.call(rbind, lapply(50, function(x) do.call(rbind.data.frame,fullReplicates[[x]][[1]]))) %>% rownames_to_column()
+betas$Estimate = round(betas$Estimate, digits = 2)
+betas$`Std. Error` = round(betas$`Std. Error`, digits =2 )
+betas$call = paste(betas$Estimate,"±",betas$`Std. Error`)
+betas$call = str_replace_all(string=betas$call, pattern=" ", repl="")
+betas$`Pr(>|t|)` = signif(betas$`Pr(>|t|)`, digits = 3)
+betas$`Pr(>|t|)` = gsub("e", "x10",betas$`Pr(>|t|)` )
+betas2 =betas %>% 
+  dplyr::select(rowname, call, p = `Pr(>|t|)`)
+
+# write_csv(partials2, "../partials_ULLA.csv" )
+# write_csv(r2s, "../r2s_ULLA.csv" )
+# write_csv(betas2, "../betas_ULLA.csv" )
 
 
 dats = dat %>% 
@@ -417,10 +392,12 @@ dats = dat %>%
   summarise(prop = median(prop),
             MAE = median(MAE),
             lower = median(lower),
-            upper = median(upper)) 
+            upper = median(upper))  %>% 
+  unite("CI", lower:upper , sep = "-") %>% 
+  unite("MAE (95% CI)", MAE:CI, sep = "(")
 
 
-# write_csv(dats, "dats_ULLA.csv" )
+# write_csv(dats, "../dats_ULLA.csv" )
 
 p3 = ggplot(dat, aes(name, prop, color = name)) +
   geom_boxplot(width=.1, alpha = .1) + 
@@ -433,13 +410,13 @@ p3 = ggplot(dat, aes(name, prop, color = name)) +
         axis.text.y = element_text(size = 20),
         axis.title.y  = element_text(size = 22,color = "gray30")) +
   labs(x = "", y = "% Within 20%") +
-  ylim(c(30,55))
+  ylim(c(40,54))
 
-pdf("fig1ulla.pdf", width = 8, height = 5)
-png( "posterfig.png", bg = "transparent")
+# pdf("fig1ulla.pdf", width = 8, height = 5)
+# png( "posterfig.png", bg = "transparent")
 p3
 
-dev.off()
+# dev.off()
 
 
 friedman_test(prop ~ name |replicate, data = dat)
@@ -451,6 +428,7 @@ MAE_wilcox = as.data.frame(dat) %>%
   wilcox_test(MAE ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
 wilcox_results_ULLA = rbind(prop_wilcox, MAE_wilcox)
-# write_csv(wilcox_results_ULLA, "wilcox_results_ULLA.csv" )
+# write_csv(wilcox_results_ULLA, "../wilcox_results_ULLA.csv" )
 
 
+# save.image("~/Documents/IWPC/05_workspace.RData")
