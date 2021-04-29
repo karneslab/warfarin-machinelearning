@@ -310,7 +310,9 @@ dat2= dat %>%
             lower= median(lower),
             upper = median(upper))%>% 
   unite("CI", lower:upper , sep = "-") %>% 
-  unite("MAE (95% CI)", MAE:CI, sep = "(")
+  unite("MAE (95% CI)", MAE:CI, sep = "(")%>% 
+  mutate(`MAE (95% CI)`= gsub("\\(", " (", `MAE (95% CI)`),
+         `MAE (95% CI)` = paste(`MAE (95% CI)`,")", sep = ""))
 
 
 #write_csv(dat2, "../dats_completecase.csv" )

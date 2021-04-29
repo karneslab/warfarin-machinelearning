@@ -39,7 +39,7 @@ uicdat = uic %>%
          dosewk <= 175,
          dosewk >=7) 
 
-vis_miss(uicdat)
+# vis_miss(uicdat)
 
 uicdat = uicdat  %>% 
   mutate(country = "US",
@@ -130,7 +130,7 @@ uicdat = uicdat  %>%
   mutate_if(is_character, as.factor) 
 
 
-skim(uicdat)
+# skim(uicdat)
 
 
 #### Mt. Siani
@@ -162,7 +162,7 @@ mtsdat = mts %>%
   filter(dosewk <= 175,
          dosewk >=7) 
 
-vis_miss(mtsdat)
+# vis_miss(mtsdat)
 
 mtsdat = mtsdat %>% 
   mutate(country = "US",
@@ -212,7 +212,7 @@ mtsdat = mtsdat %>%
   mutate_if(is.character, as.factor) %>% 
   dplyr::select(-phenytoin, -carbamaz, -rifampin, -id)
 
-skim(mtsdat)
+# skim(mtsdat)
 
 
 
@@ -248,7 +248,7 @@ uazdat = uaz %>%
          weight <= 200) %>% 
   na_if("NA")
 
-vis_miss(uazdat)
+# vis_miss(uazdat)
 
 uazdat = uazdat %>% 
   mutate(country = "US",
@@ -294,7 +294,7 @@ uazdat = uazdat %>%
             as.factor) %>% 
   dplyr::select(-id, -phenytoin, -carbamaz, -rifampin)
 
-skim(uazdat)
+# skim(uazdat)
 
 
 
@@ -328,7 +328,7 @@ uprdat = UPR %>%
          dosewk >=7) %>% 
   na_if("N/A") 
 
-vis_miss(uprdat)
+# vis_miss(uprdat)
 
 
 uprdat = uprdat %>% 
@@ -382,7 +382,7 @@ uprdat = uprdat %>%
   dplyr::select(-id, -phenytoin, -carbamaz, -rifampin)
 
 
-skim(uprdat)
+# skim(uprdat)
 
 
 
@@ -391,12 +391,12 @@ latinos = full_join(uicdat, mtsdat)
 skim(latinos)
 
 latinos = full_join(latinos, uazdat)
-skim(latinos)
+# skim(latinos)
 
 
 latinos = full_join(latinos, uprdat)
 
-skim(latinos)
+# skim(latinos)
 
 #### prep for merging wth iwpc
 latinosdat = 
@@ -438,7 +438,7 @@ latinosdat =
 
 
 
-skim(latinosdat)
+# skim(latinosdat)
 
 #### University of Sao Paulo Brazil  
 brazil = read_excel("../brazil.xlsx")
@@ -447,7 +447,7 @@ brazil_df =
   brazil %>% 
   na_if("#NULL!")
 
-vis_miss(brazil_df)
+# vis_miss(brazil_df)
 
 brazil_df = brazil_df %>% 
   mutate(country = "Brazil",
@@ -523,7 +523,7 @@ brazil_df = brazil_df %>%
 
 
 
-vis_miss(brazil_df)
+# vis_miss(brazil_df)
 
 #### Instituto Nacional de Cardiologia Laranjeiras
 brazil2 = read_excel("../brazil2.xls")
@@ -551,7 +551,7 @@ brazil_df2 =
          dosewk<=175,
          dosewk>=7)
 
-vis_miss(brazil_df2)
+# vis_miss(brazil_df2)
 
 brazil_df2 = brazil_df2 %>% 
   mutate(country = "Brazil" ,
@@ -610,7 +610,7 @@ brazil_df2 = brazil_df2 %>%
          diabetes = if_else(diabetes == "YES", "1", "0")) %>% 
   mutate_if(is.character, as.factor) 
 
-skim(brazil_df2)
+# skim(brazil_df2)
 
 ### Porto Alegre
 brazil3  = read_excel("../brazil3.xlsx")
@@ -636,7 +636,7 @@ brazil_df3 =
     diabetes = Diabetes,
     sex = Gender) 
 
-vis_miss(brazil_df3)
+# vis_miss(brazil_df3)
 
 brazil_df3 = brazil_df3 %>% 
   mutate(country = "Brazil", 
@@ -698,7 +698,7 @@ brazil_df3 = brazil_df3 %>%
   mutate(height = if_else(is.na(height), height_imp, as.numeric(height)),
          weight = if_else(is.na(weight), weight_imp, as.numeric(weight))) 
 
-vis_miss(brazil_df3)
+# vis_miss(brazil_df3)
 
 brazilmerged = full_join(brazil_df, brazil_df2)
 brazilmerged2 = full_join(brazilmerged, brazil_df3) %>% 
@@ -706,8 +706,79 @@ brazilmerged2 = full_join(brazilmerged, brazil_df3) %>%
   filter(dosewk <= 175,
          dosewk >=7)
 
-vis_miss(brazilmerged2)
+# vis_miss(brazilmerged2)
 
+
+#### COLOMBIA DATA
+CO <- read_excel("../COL.xlsx") %>% 
+  na_if("MD") %>% 
+  filter(Dose >7,
+         Dose <= 175,
+         Stable == "1") %>% 
+  mutate(Code = toupper(Code),
+         Code = gsub(" ", "", Code))
+
+CO2 =  read_excel(path = "../COL2.xlsx",
+                  skip = 2)  %>% 
+  mutate(`...1` = toupper(`...1`),
+         Code = gsub(" ", "", `...1`),
+         diabetes = `MELLITUS DIABETES...2`)%>% 
+  na_if("MD") %>% 
+  dplyr::select("Code", "diabetes") %>% 
+  inner_join(CO)
+
+# vis_miss(CO2)
+
+codat = CO2 %>% 
+  mutate(
+    race = "Mixed or Missing", 
+    ethnicity = "Hispanic or Latino",
+    country = "Colombia", 
+    site = "29", 
+    age = cut(Age, 
+              breaks=c(10, 20, 30, 40, 50, 60, 70,80, 90, 100), 
+              right = FALSE, 
+              labels = c("10 - 19", "20 - 29", "30 - 39",
+                         "40 - 49", "50 - 59", "60 - 69", 
+                         "70 - 79", "80 - 89","90+")),
+    dosewk = Dose,
+    age = as.numeric(age),
+    height = if_else(is.na(Height), mean(as.numeric(Height), na.rm= T), as.numeric(Height)),
+    height = height*100,
+    weight = Weight,
+    vkor = `VKORC1 rs9923231`,
+    cyp = if_else(`CYP2C9 * 2 rs1799853` == "2 * / 2 *" & `CYP2C9 * 3 rs1057910` == "1 * / 1 *", "*2/*2",
+                  if_else(`CYP2C9 * 2 rs1799853` == "1 * / 2 *" & `CYP2C9 * 3 rs1057910` == "1 * / 1 *", "*1/*2",
+                          if_else(`CYP2C9 * 2 rs1799853` == "1 * / 2 *" & `CYP2C9 * 3 rs1057910` == "1 * / 3 *","*2/*3",
+                                  if_else(`CYP2C9 * 2 rs1799853` == "1 * / 1 *" & `CYP2C9 * 3 rs1057910` == "1 * / 3 *", "*1/*3", "*1/*1")))),
+    vkor = if_else(`VKORC1 rs9923231` == "A / A", "AA", 
+                   if_else(`VKORC1 rs9923231` == "G / A", "GA", "GG")),
+    ei= as_factor(Inducers),
+    amio = as_factor(Amiodarone),
+    indication = if_else(Indication == "Valvular replacement", "MVR",
+                         if_else(Indication== "Atrial fibrillation", "AFIB", if_else(Indication == "Stroke", "TIA", if_else(Indication == "DVT" | Indication == "PE", "DVT/PE", "OTHER")))),
+    statin = as_factor(Lovastatin),
+    aspirin = if_else(grepl("aspirin", ignore.case = T, `Antiplatelet drugs`), "1", "0"),
+    # smoke = "0",
+    smoke = sample(0:1, n(), replace =T, prob = c(0.5,0.5)),
+    smoke = as.factor(smoke),
+    diabetes = if_else(diabetes == 1, "1", diabetes),
+    diabetes = as.numeric(diabetes),
+    diabetes = if_else(is.na(diabetes),
+                                     sample(0:1, n(),
+                                            replace = T,
+                                            prob = c(.5,.5)),
+                                     as.integer(diabetes)),
+    diabetes = as.factor(diabetes),
+    target = "2.5", 
+    sex = if_else(Gender == "2", "0", "1")
+  ) %>% 
+  dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target)
+
+# vis_miss(codat)
+
+SA  = full_join(codat, brazilmerged2)
+vis_miss(SA)
 
 
 #### iwpc matching 
@@ -716,7 +787,8 @@ vis_miss(brazilmerged2)
 
 
 ## 2.1 
-iwpc <- read_xls("../PS206767-553247439.xls",
+## 2.1 
+iwpc <- read_xls("../PS206767-553247439.xls", 
                  sheet = "Subject Data")
 
 
@@ -766,48 +838,11 @@ iwpcdat = iwpc %>%
   filter(stable == 1,
          !is.na(age),
          !is.na(dosewk),
-         target %!in% c("3.5", "3.25", "3-4", "3", "2.5-3.5", "1.3", "1.75", "2")) 
+         # target %!in% c("3.5", "3.25", "3-4", "3", "2.5-3.5", "1.3", "1.75", "2")
+  ) 
 
 iwpcdat = iwpcdat %>% 
   mutate(
-    target = if_else(is.na(target), "2.5", as.character(target)),
-    target = factor(target,
-                    levels = c("1.3",
-                               "1.7-2.8",
-                               "1.7-3.3",
-                               "1.75",
-                               "2",
-                               "2-3",
-                               "2-3.5",
-                               "2.2000000000000002",
-                               "2.2999999999999998", 
-                               "2.5",
-                               "2.5-3.5",
-                               "2.6000000000000001",
-                               "2.7000000000000002",
-                               "2.7999999999999998",
-                               "3",
-                               "3-4",
-                               "3.25",
-                               "3.5"),
-                    labels = c("1.3",
-                               "2.25",
-                               "2.5",
-                               "1.75",
-                               "2",
-                               "2.5",
-                               "2.75",
-                               "2.2",
-                               "2.3",
-                               "2.5",
-                               "3",
-                               "2.6",
-                               "2.7",
-                               "2.8",
-                               "3",
-                               "3.5",
-                               "3.25",
-                               "3.5")),
     cyp = if_else(cyp_con == "*1/*11",
                   "*1/*2", 
                   if_else(cyp_con %in% 
@@ -872,20 +907,20 @@ iwpcdat = iwpcdat %>%
                        statin7 == "1",
                      "1",
                      "0"),
-     statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
+    statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
     # statin = if_else(is.na(statin), "0", as.character(statin)),
     # smoke = if_else(is.na(smoke), "0", as.character(smoke)), 
-    smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
+     smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
     ei = if_else(carbamaz == "1" |
                    phenytoin == "1" |
                    rifampin == "1",
                  "1",
                  "0"),
     ei = replace_na(ei, "0"),
-    aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(aspirin)),
+     aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(aspirin)),
     # aspirin = if_else(is.na(aspirin),"0", as.character(aspirin)),
     # diabetes = if_else(is.na(diabetes), "0", as.character(diabetes)),
-     diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(diabetes)),
+    diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(diabetes)),
     amio = replace_na(amio, "0"), 
     indication = if_else(indication %in% 
                            c("4", 
@@ -968,9 +1003,9 @@ iwpcdat = iwpcdat %>%
                 -statin4, -statin5, -statin6,
                 -statin7, -eth_rep, -phenytoin,
                 -rifampin, -carbamaz, -target_est,
-                -height_imp, -weight_imp) 
+                -height_imp, -weight_imp, -target) 
 
-vis_miss(iwpcdat)
+# vis_miss(iwpcdat)
 
 ## impute with rs2359612
 iwpcdat$vkor_imp = if_else(is.na(iwpcdat$vkor1639) &
@@ -1072,54 +1107,62 @@ iwpc_df = full_join(test, train)
 iwpc_df$vkor = factor(iwpc_df$vkor, levels = c("G/G", "A/G", "A/A", "Missing"), ordered = T)
 iwpc_df$race = factor(iwpc_df$race, levels = c("white", "Asian",
                                                "Black or African American",
-                                               "Mixed or Missing"), ordered = T)
+                                               "Mixed or Missing"), ordered = F)
 
 
 
 iwpc_df= iwpc_df %>% 
   mutate( vkor = factor(vkor, levels = c("G/G", "A/G", "A/A", "Missing"),
                         labels = c("GG", "AG", "AA", "NA")),
-          target = if_else(target %in% c("1.3", "1.75", "2"), "<2",
-                           if_else(target %in% c("2.2", "2.25", "2.3", "2.5", 
-                                                 "2.6", "2.75", "2.8"), "2-3",
-                                   if_else(target %in% c("3", "3.25", "3.5"), ">3", "2.5"))),
+          # target = if_else(target %in% c("1.3", "1.75", "2"), "<2",
+          #                  if_else(target %in% c("2.2", "2.25", "2.3", "2.5", 
+          #                                        "2.6", "2.75", "2.8"), "2-3",
+          #                          if_else(target %in% c("3", "3.25", "3.5"), ">3", "2.5"))),
           race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"),
                         labels = c("white",
                                    "Asian",
                                    "Black",
                                    "Mixed/NA"),ordered = F),
           dosewk = as.numeric(dosewk)) %>% 
-  mutate_at(.vars = c("aspirin","amio","diabetes", "target", "site", "smoke","statin", "ei", "train","cyp", "dosegroup", "indication", "sex", "ethnicity"), .funs = as.factor) %>% 
+  mutate_at(.vars = c("aspirin","amio","diabetes", "site", "smoke","statin", "ei", "train","cyp", "dosegroup", "indication", "sex", "ethnicity"), .funs = as.factor) %>% 
   mutate_at(.vars = c( "ID"),
             .funs = as.character) %>% 
   dplyr::select(-dosegroup, -train, -sqrtdose) %>% 
-  filter(site != "17",
-         dosewk <=175, dosewk >=7)
+  filter(
+    dosewk <=175, dosewk >=7)
 
 
-
-vis_miss(iwpc_df)
+# vis_miss(iwpc_df)
 
 ##### MERGE ALL AND INSPECT
-data = full_join(brazilmerged2, latinosdat)  %>% 
+data = full_join(SA, latinosdat)  %>% 
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
          dosewk = as.numeric(dosewk)) %>% 
-  filter(site != "27")
+  filter(site != "27",
+         sex != "Missing",
+         weight >=35,
+         weight <= 150,
+         height <= 200,
+         height >= 130)
 
 data2 = full_join(data, iwpc_df) %>% 
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
-         vkor = factor(vkor, levels = c("A/G", "GG", "AA", "Missing", "AG", "NA"), labels = c("AG", "GG", "AA", "Missing", "AG", "Missing")),
+         vkor = factor(vkor, levels = c("A/G", "GG","GA", "AA", "Missing", "AG", "NA"), labels = c("AG", "GG","AG", "AA", "Missing", "AG", "Missing")),
          ethnicity= factor(ethnicity, levels =c("Hispanic or Latino",   "not Hispanic or Latino", "Not Hispanic or Latino", "Unknown"), labels = c("Hispanic or Latino" , "not Hispanic or Latino", "not Hispanic or Latino", "Unknown")),
          race = factor(race, 
                        levels = c("white" , "Black or African American", "Black" , "Mixed or Missing","Asian", "Mixed/NA" ),
                        labels =c("white" , "Black or African American", "Black or African American" , "Mixed or Missing","Asian", "Mixed or Missing" )),
          smoke = factor(smoke, levels = c("0","1","2"), labels = c("0","1","1"))) %>% 
-  filter(sex != "Missing") %>% 
+  filter(sex != "Missing",
+         weight >=35,
+         weight <= 150,
+         height <= 200,
+         height >= 130) %>% 
   dplyr::select( -ID, -target) %>% 
   droplevels()
 
 vis_miss(data2)
-
+visdat::vis_miss(data)
 
 
 # Write data 

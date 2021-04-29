@@ -55,7 +55,8 @@ latinos = read_csv("../ULLA.csv") %>%
          ),
          BSA = sqrt((height*weight)/3600),
          race = factor(race, levels = c("white", "Black or African American", "Mixed or Missing", "Black"), labels = c("white",  "Black or African American", "Mixed or Missing", "Black or African American")),
-         vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing")),
+         vkor = factor(vkor, levels = c("GG", "AG","GA", "AA", "Missing"),
+                       labels = c("GG", "AG", "AG","AA", "Missing")),
          indication = factor(indication, levels = c("AF", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA"), labels = c("AFIB", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA")),
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"))) %>% 
   mutate_at(.vars = c("site", "sex", "amio", "ei", "target", "smoke", "diabetes", "statin",
@@ -421,8 +422,11 @@ dat2 = dat %>%
             MAE = mean(MAE),
             lower = mean(lower),
             upper = mean(upper)) %>% 
+  mutate_if(is.numeric,funs(round(., digits = 2))) %>% 
   unite("CI", lower:upper , sep = "-") %>% 
-  unite("MAE (95% CI)", MAE:CI, sep = "(")
+  unite("MAE (95% CI)", MAE:CI, sep = "(")%>% 
+  mutate(`MAE (95% CI)`= gsub("\\(", " (", `MAE (95% CI)`),
+         `MAE (95% CI)` = paste(`MAE (95% CI)`,")", sep = ""))
 #write_csv(dat2, "../dats_ULLAbyrace.csv" )
 
 hlinedat = dat %>% 
@@ -430,9 +434,9 @@ hlinedat = dat %>%
   summarise(prop = median(prop))
 
 race_n <- c(
-  'white'="White (n = 1,159)",
-  'Black or African American'="Black or African American (n = 293)",
-  'Mixed or Missing'="Mixed or Missing (n = 140)"
+  'white'="White (n = 1,153)",
+  'Black or African American'="Black or African American (n = 292)",
+  'Mixed or Missing'="Mixed or Missing (n = 289)"
 )
 
 p3 = ggplot(dat, aes(name, prop, color = name)) +
@@ -440,14 +444,15 @@ p3 = ggplot(dat, aes(name, prop, color = name)) +
   geom_jitter(width = .2, alpha = .1) + 
   theme_minimal()+
   theme(legend.position = "right",
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
+        panel.grid.minor.x  = element_blank(),
+        panel.grid.major.x = element_blank(),
         axis.text.x = element_blank(),
         axis.text.y = element_text(size = 20),
+        axis.title.y = element_text(size = 22),
         legend.text = element_text(size = 20),
-        strip.text.x = element_text(size = 20),
+        strip.text.x = element_text(size = 22),
         legend.title = element_text(size = 22)) + 
-  labs(x = "", y = " ", color = "Model") +
+  labs(x = "", y = "Percentage within 20%", color = "Model") +
   facet_wrap(race~., labeller = as_labeller(race_n))+
   geom_hline(data = hlinedat, aes(yintercept=prop),
              color = "gray30") +
@@ -460,11 +465,10 @@ p3
 # dev.off()
 
 dat3 = dat %>% 
-  group_by(name, replicate) %>% 
+  group_by( race) %>% 
   summarise(prop = mean(prop)) %>% 
   as_data_frame() %>% 
-  mutate(replicate = factor(replicate),
-         name = factor(name))
+  mutate(race = factor(race))
 
 friedman_test(prop ~ name |replicate, data = dat3)
 

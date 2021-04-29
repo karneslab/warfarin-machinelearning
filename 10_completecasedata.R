@@ -39,7 +39,7 @@ uicdat = uic %>%
          dosewk <= 175,
          dosewk >=7) 
 
-vis_miss(uicdat)
+# vis_miss(uicdat)
 
 uicdat = uicdat  %>% 
   mutate(country = "US",
@@ -128,7 +128,7 @@ uicdat = uicdat  %>%
   filter(!is.na(ei), !is.na(amio), !is.na(height))
 
 
-vis_miss(uicdat)
+# vis_miss(uicdat)
 
 
 #### Mt. Siani
@@ -160,7 +160,7 @@ mtsdat = mts %>%
   filter(dosewk <= 175,
          dosewk >=7) 
 
-vis_miss(mtsdat)
+# vis_miss(mtsdat)
 
 mtsdat = mtsdat %>% 
   mutate(country = "US",
@@ -211,7 +211,7 @@ mtsdat = mtsdat %>%
   dplyr::select(-phenytoin, -carbamaz, -rifampin, -id)%>% 
   filter(!is.na(ei), !is.na(amio))
 
-vis_miss(mtsdat)
+# vis_miss(mtsdat)
 
 
 
@@ -247,7 +247,7 @@ uazdat = uaz %>%
          weight <= 200) %>% 
   na_if("NA")
 
-vis_miss(uazdat)
+# vis_miss(uazdat)
 
 uazdat = uazdat %>% 
   mutate(country = "US",
@@ -294,7 +294,7 @@ uazdat = uazdat %>%
   dplyr::select(-id, -phenytoin, -carbamaz, -rifampin)%>% 
   filter(!is.na(ei), !is.na(amio))
 
-skim(uazdat)
+# skim(uazdat)
 
 
 
@@ -328,7 +328,7 @@ uprdat = UPR %>%
          dosewk >=7) %>% 
   na_if("N/A") 
 
-vis_miss(uprdat)
+# vis_miss(uprdat)
 
 
 uprdat = uprdat %>% 
@@ -383,21 +383,21 @@ uprdat = uprdat %>%
   filter(!is.na(ei), !is.na(amio))
 
 
-skim(uprdat)
+# skim(uprdat)
 
 
 
 ### JOIN HISPANIC DATA TOGETHER 
 latinos = full_join(uicdat, mtsdat)
-skim(latinos)
+# skim(latinos)
 
 latinos = full_join(latinos, uazdat)
-skim(latinos)
+# skim(latinos)
 
 
 latinos = full_join(latinos, uprdat)
 
-skim(latinos)
+# skim(latinos)
 
 #### prep for merging wth iwpc
 latinosdat = 
@@ -439,7 +439,7 @@ latinosdat =
 
 
 
-skim(latinosdat)
+# skim(latinosdat)
 
 #### University of Sao Paulo Brazil  
 brazil = read_excel("../brazil.xlsx")
@@ -448,7 +448,7 @@ brazil_df =
   brazil %>% 
   na_if("#NULL!")
 
-vis_miss(brazil_df)
+# vis_miss(brazil_df)
 
 brazil_df = brazil_df %>% 
   mutate(country = "Brazil",
@@ -525,7 +525,7 @@ brazil_df = brazil_df %>%
 
 
 
-vis_miss(brazil_df)
+# vis_miss(brazil_df)
 
 #### Instituto Nacional de Cardiologia Laranjeiras
 brazil2 = read_excel("../brazil2.xls")
@@ -553,7 +553,7 @@ brazil_df2 =
          dosewk<=175,
          dosewk>=7)
 
-vis_miss(brazil_df2)
+# vis_miss(brazil_df2)
 
 brazil_df2 = brazil_df2 %>% 
   mutate(country = "Brazil" ,
@@ -614,7 +614,7 @@ brazil_df2 = brazil_df2 %>%
   filter(!is.na(ei), !is.na(amio))
 
 
-skim(brazil_df2)
+# skim(brazil_df2)
 
 ### Porto Alegre
 brazil3  = read_excel("../brazil3.xlsx")
@@ -640,7 +640,7 @@ brazil_df3 =
     diabetes = Diabetes,
     sex = Gender) 
 
-vis_miss(brazil_df3)
+# vis_miss(brazil_df3)
 
 brazil_df3 = brazil_df3 %>% 
   mutate(country = "Brazil", 
@@ -697,7 +697,7 @@ brazil_df3 = brazil_df3 %>%
   mutate_if(is.integer, as.factor) %>% 
   filter(!is.na(ei), !is.na(amio), !is.na(height), !is.na(weight))
 
-vis_miss(brazil_df3)
+# vis_miss(brazil_df3)
 
 brazilmerged = full_join(brazil_df, brazil_df2)
 brazilmerged2 = full_join(brazilmerged, brazil_df3) %>% 
@@ -705,7 +705,72 @@ brazilmerged2 = full_join(brazilmerged, brazil_df3) %>%
   filter(dosewk <= 175,
          dosewk >=7)
 
-vis_miss(brazilmerged2)
+# vis_miss(brazilmerged2)
+
+## colombia, Dr. Fronseca
+
+CO <- read_excel("../COL.xlsx") %>% 
+  na_if("MD") %>% 
+  filter(Dose >7,
+         Dose <= 175,
+         Stable == "1") %>% 
+  mutate(Code = toupper(Code),
+         Code = gsub(" ", "", Code))
+
+CO2 =  read_excel(path = "../COL2.xlsx",
+                  skip = 2)  %>% 
+  na_if("MD") %>% 
+  mutate(`...1` = toupper(`...1`),
+         Code = gsub(" ", "", `...1`),
+         diabetes = `MELLITUS DIABETES...2`)%>% 
+  dplyr::select("Code", "diabetes") %>% 
+  inner_join(CO)
+
+# vis_miss(CO2)
+
+codat = CO2 %>% 
+  mutate(
+    race = "Mixed or Missing", 
+    ethnicity = "Hispanic or Latino",
+    country = "Colombia", 
+    site = "29", 
+    age = cut(Age, 
+              breaks=c(10, 20, 30, 40, 50, 60, 70,80, 90, 100), 
+              right = FALSE, 
+              labels = c("10 - 19", "20 - 29", "30 - 39",
+                         "40 - 49", "50 - 59", "60 - 69", 
+                         "70 - 79", "80 - 89","90+")),
+    dosewk = Dose,
+    age = as.numeric(age),
+    # height = if_else(is.na(Height), mean(as.numeric(Height), na.rm= T), as.numeric(Height)),
+    height = as.numeric(Height)*100,
+    weight = Weight,
+    vkor = `VKORC1 rs9923231`,
+    cyp = if_else(`CYP2C9 * 2 rs1799853` == "2 * / 2 *" & `CYP2C9 * 3 rs1057910` == "1 * / 1 *", "*2/*2",
+                  if_else(`CYP2C9 * 2 rs1799853` == "1 * / 2 *" & `CYP2C9 * 3 rs1057910` == "1 * / 1 *", "*1/*2",
+                          if_else(`CYP2C9 * 2 rs1799853` == "1 * / 2 *" & `CYP2C9 * 3 rs1057910` == "1 * / 3 *","*2/*3",
+                                  if_else(`CYP2C9 * 2 rs1799853` == "1 * / 1 *" & `CYP2C9 * 3 rs1057910` == "1 * / 3 *", "*1/*3", "*1/*1")))),
+    vkor = if_else(`VKORC1 rs9923231` == "A / A", "AA", 
+                   if_else(`VKORC1 rs9923231` == "G / A", "GA", "GG")),
+    ei= as_factor(Inducers),
+    amio = as_factor(Amiodarone),
+    indication = if_else(Indication == "Valvular replacement", "MVR",
+                         if_else(Indication== "Atrial fibrillation", "AFIB", if_else(Indication == "Stroke", "TIA", if_else(Indication == "DVT" | Indication == "PE", "DVT/PE", "OTHER")))),
+    statin = as_factor(Lovastatin),
+    aspirin = if_else(grepl("aspirin", ignore.case = T, `Antiplatelet drugs`), "1", "0"),
+    smoke = "0",
+    # diabetes = if_else(diabetes == 1, 1, 0),
+    diabetes = as.factor(diabetes),
+    target = "2.5", 
+    sex = if_else(Gender == "2", "0", "1")
+  ) %>% 
+  dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target) %>% 
+  filter(!is.na(height),!is.na(diabetes))
+
+# vis_miss(codat)
+
+SA  = full_join(codat, brazilmerged2)
+vis_miss(SA)
 
 
 
@@ -764,10 +829,9 @@ iwpcdat = iwpc %>%
   ) %>% 
   filter(stable == 1,
          !is.na(age),
-         !is.na(dosewk),
-         target %!in% c("3.5", "3.25", "3-4", "3", "2.5-3.5", "1.3", "1.75", "2")) 
+         !is.na(dosewk)) 
 
-vis_miss(iwpcdat)
+# vis_miss(iwpcdat)
 
 iwpcdat = iwpcdat %>% 
   mutate(
@@ -963,7 +1027,7 @@ iwpcdat = iwpcdat %>%
                 -statin7, -eth_rep, -phenytoin,
                 -rifampin, -carbamaz, -target_est) 
 
-vis_miss(iwpcdat)
+# vis_miss(iwpcdat)
 
 ## impute with rs2359612
 iwpcdat$vkor_imp = if_else(is.na(iwpcdat$vkor1639) &
@@ -1092,23 +1156,32 @@ iwpc_df= iwpc_df %>%
 
 
 
-vis_miss(iwpc_df)
+# vis_miss(iwpc_df)
 
 ##### MERGE ALL AND INSPECT
-data = full_join(brazilmerged2, latinosdat)  %>% 
+data = full_join(SA, latinosdat)  %>% 
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
          dosewk = as.numeric(dosewk)) %>% 
-  filter(site != "27")
+  filter(site != "27",
+         sex != "Missing",
+         weight >=35,
+         weight <= 150,
+         height <= 200,
+         height >= 130)
 
 data2 = full_join(data, iwpc_df) %>% 
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
-         vkor = factor(vkor, levels = c("A/G", "GG", "AA", "Missing", "AG", "NA"), labels = c("AG", "GG", "AA", "Missing", "AG", "Missing")),
+         vkor = factor(vkor, levels = c("GA", "A/G", "GG", "AA", "Missing", "AG", "NA"), labels = c("AG", "AG", "GG", "AA", "Missing", "AG", "Missing")),
          ethnicity= factor(ethnicity, levels =c("Hispanic or Latino",   "not Hispanic or Latino", "Not Hispanic or Latino", "Unknown"), labels = c("Hispanic or Latino" , "not Hispanic or Latino", "not Hispanic or Latino", "Unknown")),
          race = factor(race, 
                        levels = c("white" , "Black or African American", "Black" , "Mixed or Missing","Asian", "Mixed/NA" ),
                        labels =c("white" , "Black or African American", "Black or African American" , "Mixed or Missing","Asian", "Mixed or Missing" )),
          smoke = factor(smoke, levels = c("0","1","2"), labels = c("0","1","1"))) %>% 
-  filter(sex != "Missing") %>% 
+  filter(sex != "Missing",
+         weight >=35,
+         weight <= 150,
+         height <= 200,
+         height >= 130) %>% 
   dplyr::select( -ID, -target) %>% 
   droplevels()
 
@@ -1116,7 +1189,6 @@ vis_miss(data2)
 
 
 
-# Write data 
-# write.csv(data, file = "../ULLA.csv")
+### write data 
 # write.csv(data2, file = "../merged_iwpc_ULLAcc.csv")
 

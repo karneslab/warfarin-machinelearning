@@ -8,7 +8,8 @@ set.seed(18)
 latinos = read_csv("../ULLA.csv") %>% 
   mutate(sqrtdose = sqrt(dosewk),
          race = factor(race, levels = c("white", "Black or African American", "Mixed or Missing", "Black"), labels = c("white",  "Black or African American", "Mixed or Missing", "Black or African American")),
-         vkor = factor(vkor, levels = c("GG", "AG", "AA", "Missing")),
+         vkor = factor(vkor, levels = c("GG","GA", "AG", "AA", "Missing"),
+                       labels = c("GG","AG", "AG", "AA" , "Missing")),
          indication = factor(indication, levels = c("AF", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA"), labels = c("AFIB", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA")),
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"))) %>% 
   mutate_at(.vars = c("site", "sex", "amio", "ei", "smoke", "diabetes", "statin",
@@ -42,13 +43,14 @@ iwpc = read_csv("../iwpc_df.csv") %>%
                 site)
 
 tableonedat = full_join(iwpc, latinos) %>% 
-  mutate(cohort = if_else(site %in% c("22", "23", "24", "25", "26", "27", "28"), "ULLA", "IWPC")) %>% 
+  mutate(cohort = if_else(site %in% c("22", "23", "24", "25", "26", "27", "28", "29"), "ULLA", "IWPC")) %>% 
   dplyr::select(-site)
 
 table1 = CreateTableOne(strata = "cohort", addOverall = F,data = tableonedat,
                         includeNA = F)
 
 tab1mat =  print(table1, nonnormal = c("dosewk", "height", "weight"), quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+
 ## Save to a CSV file
 write.csv(tab1mat, file = "~/Documents/IWPC/Table1.csv")
 
