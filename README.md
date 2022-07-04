@@ -1,5 +1,6 @@
 # warfarin-machinelearning
 Machine Learning for Prediction of Stable Warfarin Dose in US Latinos and Latin Americans
+DOI: 10.3389/fphar.2021.749786
 
 
 01- Reproduces IWPC cohort (n = 5051) and creates a table of subject characteristics similar to Table 1 in Klein et. al 2009. 
