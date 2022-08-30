@@ -59,7 +59,7 @@ iwpc_df= iwpc_df %>%
                                    "Asian",
                                    "Black",
                                    "Mixed/NA"))) %>% 
-  mutate_at(.vars = c("aspirin","amio","diabetes", "target", "site", "smoke","statin", "ei", "train","cyp", "dosegroup", "indication", "sex", "ethnicity"), .funs = as.factor) %>% 
+  mutate_at(.vars = c("aspirin","amio","diabetes", "target", "site", "smoke","statin", "ei", "train","cyp", "dosegroup", "indication", "sex", "ethnicity", "metformin"), .funs = as.factor) %>% 
   mutate_at(.vars = c("X1", "ID"),
             .funs = as.character) %>% 
   filter(sex != "Missing")
@@ -114,22 +114,22 @@ fitOneSet <- function(){
   
   #### IWPC LM 
   fit = (lm(data = train, 
-            sqrtdose ~ age + height + weight + vkor + cyp + race + 
+            sqrtdose ~ age + height + weight + cyp + vkor + race + 
               ei + amio))
   
   fit$coefficients <- c(5.6044, 
                         -0.2614,
                         0.0087,
                         0.0128,
-                        -0.8677,
-                        -1.6974,
-                        -0.4854,
                         -0.5211,
                         -0.9357,
                         -1.0616,
                         -1.9206,
                         -2.3312,
                         -0.2188,
+                        -0.8677,
+                        -1.6974,
+                        -0.4854,
                         -0.1092,
                         -0.2760,
                         -0.1032,
@@ -148,7 +148,7 @@ fitOneSet <- function(){
   r2_iwpc = summary(fit)$r.squared
   #### IWPC VARIABLES
   
-  iwpcvars = lm(sqrtdose ~ age + height + weight  + vkor+ cyp+
+  iwpcvars = lm(sqrtdose ~ age + height + weight  + cyp+ vkor+
                   race + ei + amio , 
                 data = train)
   
@@ -216,7 +216,7 @@ fitOneSet <- function(){
   
   
   #### Kitchen skin model 
-  newcovars = lm(sqrtdose ~ age + height + weight + sex + cyp + vkor + race   +ei + amio+statin+ ethnicity+aspirin+ indication+diabetes + smoke ,data = train)
+  newcovars = lm(sqrtdose ~ age + height + weight  + cyp + vkor + race   +ei + amio+ ethnicity+sex+ statin+aspirin+metformin+ indication+diabetes +  smoke ,data = train)
   
   test$pred_NLM = predict(newcovars, test)
   train$pred_NLM = predict(newcovars, train)
@@ -231,7 +231,7 @@ fitOneSet <- function(){
   ################ ML ######################
   
   
-  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei  +ethnicity +sex + smoke  + statin+ aspirin+ diabetes,data = train)
+  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei  +ethnicity +sex + smoke  + statin+ aspirin+ diabetes + metformin,data = train)
   
   
   test$pred_svm =stats::predict(OptModelsvm,test)
@@ -243,14 +243,14 @@ fitOneSet <- function(){
   ## Bayesian Additive Regression Trees (BART)
   
   x1 = train %>%
-    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke ,ethnicity ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke ,ethnicity ,statin,aspirin, diabetes, sex, metformin)) %>%
     as.data.frame()
   
   bart <- bartMachine(x1, train$sqrtdose, mem_cache_for_speed = F)
   
   
   testx = test %>% 
-    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke ,ethnicity ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke ,ethnicity ,statin,aspirin, diabetes, sex, metformin)) %>%
     as.data.frame()
   
   test$pred_bart = predict(bart, testx)
@@ -262,7 +262,7 @@ fitOneSet <- function(){
   # Fit a basic MARS model
   
   
-  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race+ ei   +ethnicity +sex + smoke  + statin+ aspirin+ diabetes,data = train,
+  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race+ ei   +ethnicity +sex + smoke  + statin+ aspirin+ diabetes + metformin,data = train,
                method = "earth",
                metric = "MAE"
   )
@@ -436,8 +436,8 @@ partials2 = t(round(partials, digits = 2))%>% as_data_frame()
 betas = do.call(rbind, lapply(50, function(x) do.call(rbind.data.frame,fullReplicates[[x]][[1]]))) %>% rownames_to_column()
 
 
-# write_csv(partials2, "partials_iwpc.csv" )
-# write_csv(betas, "betas_iwpc.csv" )
+# write_csv(partials2, "partials_iwpc_met.csv" )
+# write_csv(betas, "betas_iwpc_met.csv" )
 
 dat2 = dat %>% 
   filter(name %in% c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART")) %>% 
@@ -454,7 +454,7 @@ dats = dat2 %>%
   mutate(`MAE (95% CI)`= gsub("\\(", " (", `MAE (95% CI)`),
          `MAE (95% CI)` = paste(`MAE (95% CI)`,")", sep = ""))
 
-# write_csv(dats, "../dats_iwpc.csv" )
+# write_csv(dats, "../dats_iwpc_met.csv" )
 
 p1 = ggplot(dat %>%  filter(train == 0), aes(name, prop, color = name)) +
   geom_boxplot(width=.1, alpha = .1) + 
@@ -471,7 +471,7 @@ p1 = ggplot(dat %>%  filter(train == 0), aes(name, prop, color = name)) +
   labs(x = "", y = "Percentage Within 20%",
        color = "") 
 
-pdf("../figS1.pdf", width = 8, height = 5)
+pdf("../figS1_met.pdf", width = 8, height = 5)
 
 
 p1
@@ -488,7 +488,8 @@ MAE_wilcox = as.data.frame(dat_test) %>%
   wilcox_test(MAE ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
 wilcox_results_IWPC = rbind(prop_wilcox, MAE_wilcox)
-# write_csv(wilcox_results_IWPC, "../wilcox_results_IWPC.csv" )
+ write_csv(wilcox_results_IWPC, "../wilcox_results_IWPC_met.csv" )
 
 
-
+#########SAVE YOUR WORKSPACE ##############
+##########################################

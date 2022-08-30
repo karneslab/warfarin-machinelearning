@@ -45,14 +45,14 @@ mae2 = function(actual, predicted, level=.95){
   )
 }
 
-mergeddat = read_csv("../merged_iwpc_ULLA.csv")
+mergeddat = read_csv("../merged_iwpc_ULLAsens_imp.csv")
 # mergeddat$ethnicity[mergeddat$site == "17"] = "Hispanic or Latino"
 ###########################################################
 #####################DATA##################################
 ###########################################################
 
 mergeddat = mergeddat %>% 
-  mutate_at(.vars = c( "sex", "aspirin","cyp", "race", "amio", "diabetes", "site", "smoke", "statin", "ei", "ethnicity", "indication", "metformin"), .funs = as.factor) %>% 
+  mutate_at(.vars = c( "sex", "aspirin","cyp", "race", "amio", "diabetes", "site", "smoke", "statin", "ei", "ethnicity", "indication"), .funs = as.factor) %>% 
   mutate(
          dosegroup = case_when(
            dosewk <= 21 ~  "low",
@@ -69,7 +69,7 @@ mergeddat = mergeddat %>%
 
 
 train = mergeddat %>% sample_frac(.7) %>% mutate(train = 1) 
-mergeddat$train = if_else(mergeddat$X1 %in% train$X1, 1, 0)
+mergeddat$train = if_else(mergeddat$...1 %in% train$...1, 1, 0)
 test = mergeddat %>% filter(train == 0)
 
 '%nin%' <-Negate('%in%')
@@ -453,10 +453,10 @@ betas2 =betas %>%
 
 dat2 = dat %>% 
   filter(name %in% c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART")) %>% 
-  group_by(name,train)
+  group_by(name)
 
 dats = dat2 %>% 
-  group_by(train,name) %>% 
+  group_by(name) %>% 
   summarise(prop = median(prop),
             MAE = median(MAE),
             lower = median(lower),
@@ -467,7 +467,7 @@ dats = dat2 %>%
          `MAE (95% CI)` = paste(`MAE (95% CI)`,")", sep = ""))
 
 
-# write_csv(dats, "../dats_merged.csv" )
+# write_csv(dats, "../dats_merged_sens_imp.csv" )
 
 p2 = ggplot(dat2 %>%  filter(train ==0), aes(name, prop, color = name)) +
   geom_boxplot(width=.1, alpha = .1) + 

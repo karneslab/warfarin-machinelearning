@@ -2,12 +2,10 @@ library(tidyverse)
 library(readxl)
 library(skimr)
 library(naniar)
-#### prep for merging all hispanics + brazil data 
 
 
-
-
-####  Chicago 
+####  Chicago
+###################
 uic = read_xlsx("../UIC.xlsx")
 
 ## race missing 
@@ -31,6 +29,7 @@ uicdat = uic %>%
     statin = `Statin N=0, Y=1`,
     phenytoin = `Phenytoin N=0, Y=1`,
     carbamaz = `Carbamazepine N=0, Y=1`,
+    meds = `Concomitant Medications`,
     cyp2 = `CYP2C9*2 3608C>T 144R>C`,
     cyp3 = `CYP2C9*3 42614A>C 359I>L`,
     vkor = `VKORC1 G3673A  -1639G>A`
@@ -111,13 +110,14 @@ uicdat = uicdat  %>%
                                  "Missing")),
          vkor = if_else(is.na(vkor), "Missing", vkor),
          site = "22",
-         race = "Mixed or Missing"
+         race = "Mixed or Missing",
+         metformin = if_else(grepl("metf", ignore.case = T, meds),"1", "0")
   ) %>% 
   group_by(sex,race) %>% 
   mutate(height = if_else(is.na(height), mean(height, na.rm = T), height)) %>% 
   ungroup() %>% 
-  dplyr::select(-carbamaz, -phenytoin, -id) %>% 
-  mutate_at(.vars = c("sex", "diabetes", "smoke", "aspirin", "statin", "amio"),
+  dplyr::select(-carbamaz, -phenytoin, -id, -meds) %>% 
+  mutate_at(.vars = c("sex", "diabetes", "smoke", "aspirin", "statin", "amio", "metformin"),
             as.factor) %>% 
   mutate_if(is_character, as.factor) 
   
@@ -125,8 +125,10 @@ uicdat = uicdat  %>%
 # 
 # skim(uicdat)
 
+###################
 
 #### Mt. Siani
+#################
 mts = read_xlsx("../MTS.xlsx", sheet = "Subject Data")
 
 mtsdat = mts %>% 
@@ -148,6 +150,7 @@ mtsdat = mts %>%
     phenytoin = `Phenytoin (Dilantin)`,
     carbamaz = `Carbamazepine (Tegretol)`,
     rifampin = `Rifampin or Rifampicin`,
+    meds = `Medications`,
     cyp = `Cyp2C9 genotypes`,
     vkor = `VKORC1 genotype:   -1639 G>A (3673); chr16:31015190(hg18); rs9923231`
   ) %>% 
@@ -193,24 +196,26 @@ mtsdat = mtsdat %>%
                                  "Missing", 
                                  "Missing")),
          # diabetes = sample(c(0,1),nrow(mtsdat), prob = c(.5,.5), replace = T),
-         diabetes = if_else(is.na(diabetes), "0", as.character(diabetes))
+         diabetes = if_else(is.na(diabetes), "0", as.character(diabetes)),
+         metformin = if_else(grepl("metf", ignore.case = T, meds), "1", "0")
   ) %>% 
   mutate_at(.vars = c("smoke", 
                       "aspirin", 
                       "statin",
                       "amio",
-                      "diabetes"),
+                      "diabetes",
+                      "metformin"),
             as.factor) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-phenytoin, -carbamaz, -rifampin, -id)
+  dplyr::select(-phenytoin, -carbamaz, -rifampin, -id, -meds)
 
 
 # skim(mtsdat)
 
+###################
 
-
-#### Arizona 
-
+#### UArizona 
+###################
 uaz = read_xlsx("../UAZ.xlsx", sheet= "Subject Data")
 
 
@@ -233,6 +238,7 @@ uazdat = uaz %>%
     phenytoin = `Phenytoin (Dilantin)`,
     carbamaz = `Carbamazepine (Tegretol)`,
     rifampin = `Rifampin or Rifampicin`,
+    meds = `Medications`,
     cyp = `Cyp2C9 genotypes`,
     vkor = `VKORC1 genotype:   -1639 G>A (3673); chr16:31015190(hg18); rs9923231`
   ) %>% 
@@ -268,7 +274,8 @@ uazdat = uazdat %>%
                                               "MVR",
                                               if_else(indication == 6,
                                                       "TIA",
-                                                      "OTHER"))))) %>% 
+                                                      "OTHER")))),
+         metformin = if_else(grepl("metf", ignore.case = T, meds), "1", "0")) %>% 
   mutate_at(.vars = c("diabetes",
                       "smoke", 
                       "aspirin", 
@@ -282,15 +289,16 @@ uazdat = uazdat %>%
                       "ethnicity",
                       "ei",
                       "site",
-                      "indication"),
+                      "indication",
+                      "metformin"),
             as.factor) %>% 
-  dplyr::select(-id, -phenytoin, -carbamaz, -rifampin)
+  dplyr::select(-id, -phenytoin, -carbamaz, -rifampin, -meds)
 
 # skim(uazdat)
+###################
 
-
-
-
+###### UPR 
+###################
 UPR <- read_excel("../UPR.xlsx")
 
 
@@ -313,6 +321,7 @@ uprdat = UPR %>%
     phenytoin = `Phenytoin (Dilantin)`,
     carbamaz = `Carbamazepine (Tegretol)`,
     rifampin = `Rifampin or Rifampicin`,
+    meds = `Medications`,
     cyp = `Cyp2C9 genotypes`,
     vkor = `VKORC1 genotype:   -1639 G>A (3673); chr16:31015190(hg18); rs9923231`
   ) %>% 
@@ -362,23 +371,26 @@ uprdat = uprdat %>%
                                               if_else(indication %in% c("6", "6; 8"), "TIA", "OTHER")))),
          cyp = if_else(cyp %in% c("*1/*1", "*1/*2", 
                                   "*2/*2", "*1/*3", "*2/*3",
-                                  "*3/*3"), cyp, "Missing")) %>% 
+                                  "*3/*3"), cyp, "Missing"),
+         metformin = if_else(grepl("metf", ignore.case = T, meds), "1", "0")) %>% 
   mutate_at(.vars = c("diabetes",
                       "smoke", 
                       "aspirin", 
                       "statin",
                       "target", 
-                      "amio"),
+                      "amio",
+                      "metformin"),
             as.factor) %>%
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-id, -phenytoin, -carbamaz, -rifampin)
+  dplyr::select(-id, -phenytoin, -carbamaz, -rifampin, -meds)
 
 # 
 # skim(uprdat)
 
+###################
 
-
-### JOIN HISPANIC DATA TOGETHER 
+### JOIN US HISPANIC DATA TOGETHER 
+###################
 latinos = full_join(uicdat, mtsdat)
 # skim(latinos)
 
@@ -431,8 +443,10 @@ latinosdat =
 
 
 # skim(latinosdat)
+###################
 
 #### University of Sao Paulo Brazil  
+###################
 brazil = read_excel("../brazil.xlsx")
 
 brazil_df = 
@@ -498,7 +512,8 @@ brazil_df = brazil_df %>%
          aspirin = as.factor(aspirin),
          # statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
          statin = if_else(is.na(statin), "0", as.character(statin)),
-         statin = as.factor(statin)) %>% 
+         statin = as.factor(statin),
+         metformin = "0") %>% 
   dplyr::select(site, dosewk, vkor, cyp,
                 age, sex, 
                 amio, ei, race, 
@@ -506,7 +521,7 @@ brazil_df = brazil_df %>%
                 height, weight,
                 indication, smoke,
                 diabetes, statin, aspirin,
-                country) %>% 
+                country, metformin) %>% 
   mutate_if(is_character, 
             as_factor) %>% 
   mutate(aspirin = as.factor(aspirin)) %>% 
@@ -516,8 +531,10 @@ brazil_df = brazil_df %>%
 # 
 # skim(brazil_df)
 # vis_miss(brazil_df)
+###################
 
 #### Instituto Nacional de Cardiologia Laranjeiras
+###################
 brazil2 = read_excel("../brazil2.xls")
 
 brazil_df2 = 
@@ -599,12 +616,15 @@ brazil_df2 = brazil_df2 %>%
          # smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
          smoke = if_else(is.na(smoke), "0", as.character(smoke)),
          smoke = as.factor(smoke),
-         diabetes = if_else(diabetes == "YES", "1", "0")) %>% 
+         diabetes = if_else(diabetes == "YES", "1", "0"),
+         metformin = "0") %>% 
   mutate_if(is.character, as.factor) 
 
 # skim(brazil_df2)
+###################
 
 ### Porto Alegre
+###################
 brazil3  = read_excel("../brazil3.xlsx")
 
 brazil_df3 = 
@@ -679,7 +699,8 @@ brazil_df3 = brazil_df3 %>%
          # diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(diabetes)),
          diabetes = if_else(is.na(diabetes), "0", as.character(diabetes)),
          weight = as.numeric(weight), 
-         dosewk = as.numeric(dosewk))%>% 
+         dosewk = as.numeric(dosewk),
+         metformin = "0")%>% 
   mutate_if(is.character, as.factor) %>% 
   mutate_if(is.integer, as.factor) %>% 
   group_by(race, sex) %>% 
@@ -702,8 +723,11 @@ brazilmerged2 = full_join(brazilmerged, brazil_df3) %>%
 # vis_miss(brazilmerged2)
 # 
 # skim(brazilmerged2)
-# ## colombia, Dr. Fronseca
 
+###################
+
+##### Colombia, Hospital Universitario Mayor (MEDERI) in Bogotá, Colombia
+###################
 CO <- read_excel("../COL.xlsx") %>% 
   na_if("MD") %>% 
   filter(Dose >7,
@@ -712,7 +736,7 @@ CO <- read_excel("../COL.xlsx") %>%
   mutate(Code = toupper(Code),
          Code = gsub(" ", "", Code))
 
-CO2 =  read_excel(path = "../COL2.xlsx",
+CO1b =  read_excel(path = "../COL1b.xlsx",
                   skip = 2)  %>% 
   mutate(`...1` = toupper(`...1`),
          Code = gsub(" ", "", `...1`),
@@ -722,7 +746,7 @@ CO2 =  read_excel(path = "../COL2.xlsx",
 
 # vis_miss(CO2)
 
-codat = CO2 %>% 
+codat = CO1b %>% 
   mutate(
     race = "Mixed or Missing", 
     ethnicity = "Hispanic or Latino",
@@ -756,21 +780,84 @@ codat = CO2 %>%
     diabetes = if_else(diabetes == 1, 1, 0),
     diabetes = as.factor(diabetes),
     target = "2.5", 
-    sex = if_else(Gender == "2", "0", "1")
+    sex = if_else(Gender == "2", "0", "1"),
+    metformin = if_else(grepl("metf", ignore.case = T, `Other drugs`), "1", "0")
   ) %>% 
-  dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target) %>% 
+  dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target, metformin) %>% 
   mutate_if(
     is.character, as.factor
   )
 
 # vis_miss(codat)
+###################
 
+#### Colombia, Hospital Militar (Bogotá, Colombia)
+#################
+CO2 <- read_excel("../COL2.xlsx") %>% 
+  filter(WARMGSEM1 >7,
+         WARMGSEM1 <= 175) 
+
+codat2 = CO2 %>% 
+  mutate(
+    race = "Mixed or Missing", 
+    ethnicity = "Hispanic or Latino",
+    country = "Colombia", 
+    site = "30", 
+    age = cut(EDAD_ANOS, 
+              breaks=c(10, 20, 30, 40, 50, 60, 70,80, 90, 100), 
+              right = FALSE, 
+              labels = c("10 - 19", "20 - 29", "30 - 39",
+                         "40 - 49", "50 - 59", "60 - 69", 
+                         "70 - 79", "80 - 89","90+")),
+    dosewk = WARMGSEM1,
+    age = as.numeric(age),
+    height = if_else(is.na(TALLA_CM), mean(as.numeric(TALLA_CM), na.rm= T), as.numeric(TALLA_CM)),
+   # height = height*100,
+    weight = PESO_KG,
+    vkor = VKORC1rs9923231,
+    cyp = if_else(CYP2C9rs1799853 == "22" & `CYP2CPrs1057910` == "11", "*2/*2",
+                  if_else(CYP2C9rs1799853 == "12*" & CYP2CPrs1057910 == "11", "*1/*2",
+                          if_else(CYP2C9rs1799853 == "12" & CYP2CPrs1057910 == "13*","*2/*3",
+                                  if_else(CYP2C9rs1799853 == "11" & CYP2CPrs1057910 == "13", "*1/*3", "*1/*1")))),
+   cyp = if_else(is.na(cyp), "Missing", cyp),
+    ei= if_else(FENITOINA == 1 | CARBAMACEPINA == 1 | RIFAMPICINA == 1, 1, 0),
+   ei = as_factor(ei),
+   amio = if_else(is.na(AMIODARONA), 0, if_else(AMIODARONA == 0, 0, 1)),
+    amio = as_factor(amio),
+   indication = if_else(VALVULOPATIACARDIACA == 1, "MVR",
+                        if_else(FIBRIAURICULAR == 1, "AFIB", 
+                                if_else(ACVTROMBOTICO == 1, "TIA", 
+                                        if_else(TROMBOSISVENOSA == 1 | EMBPULMONAR==1, "DVT/PE", "OTHER")))),
+    statin = as_factor(ESTATINAS),
+    aspirin = as_factor(ASPIRINA),
+   smoke = if_else(is.na(TABAQUISMO), 0,
+                   if_else(TABAQUISMO == 0, 0, 1)),
+    smoke = as_factor(smoke),
+    diabetes = as.factor(DIABETESMELLITUS),
+    target = "2.5", 
+    sex = if_else(SEXO == "1", "0", "1"),
+    metformin = 0,
+   metformin= as_factor(metformin)
+  ) %>% 
+  dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target, metformin) %>% 
+  mutate_if(
+    is.character, as.factor
+  )
+####################
+
+#### Join South American cohorts 
+###################
 SA  = full_join(codat, brazilmerged2)
+
+
 # vis_miss(SA)
 # 
-# skim(codat)
+SA2 = full_join(SA, codat2)
+###################
+
 #### iwpc matching 
 #### FIX INDICAATION, SMOKE, TARGET
+###################
 '%!in%' <-Negate('%in%')
 
 
@@ -816,7 +903,8 @@ iwpcdat = iwpc %>%
                 site = `Project Site`,
                 dosewk = `Therapeutic Dose of Warfarin`,
                 stable = `Subject Reached Stable Dose of Warfarin`,
-                smoke = `Current Smoker`) %>% 
+                smoke = `Current Smoker`,
+                meds = `Medications`) %>% 
   na_if("NA") %>% 
   mutate(target = if_else(is.na(target),
                           target_est,
@@ -963,7 +1051,8 @@ iwpcdat = iwpcdat %>%
                                                  "OTHER")))),
     height = as.numeric(height),
     weight = as.numeric(weight),
-    sex = if_else(sex == "female", "1", "0")
+    sex = if_else(sex == "female", "1", "0"),
+    metformin = if_else(grepl("metf", ignore.case = T, meds), "1", "0")
     
   ) %>% 
   group_by(race, sex) %>% 
@@ -984,15 +1073,15 @@ iwpcdat = iwpcdat %>%
                       "diabetes",
                       "indication",
                       "site",
-                      "cyp"), .funs = as.factor) %>% 
+                      "cyp", "metformin"), .funs = as.factor) %>% 
   dplyr::select(-cyp_con, -id, -race_rep,
                 -statin1, -statin2, -statin3,
                 -statin4, -statin5, -statin6,
                 -statin7, -eth_rep, -phenytoin,
                 -rifampin, -carbamaz, -target_est,
-                -height_imp, -weight_imp, -target) 
+                -height_imp, -weight_imp, -target,-meds) 
 
-vis_miss(iwpcdat)
+#vis_miss(iwpcdat)
 
 ## impute with rs2359612
 iwpcdat$vkor_imp = if_else(is.na(iwpcdat$vkor1639) &
@@ -1082,7 +1171,7 @@ iwpc_df = iwpcdat %>%
                 -stable) %>% 
   droplevels()
 
-### create testing training sets  ####
+### create testing training sets
 iwpc_df$ID = seq(1:nrow(iwpc_df))
 train = iwpc_df %>% group_by(site) %>%  sample_frac(.8009) %>% ungroup()
 test = anti_join(iwpc_df, train)
@@ -1119,11 +1208,12 @@ iwpc_df= iwpc_df %>%
          dosewk <=175, dosewk >=7)
 
 
-
 # vis_miss(iwpc_df)
+###################
 
 ##### MERGE ALL AND INSPECT
-data = full_join(SA, latinosdat)  %>% 
+###################
+data = full_join(SA2, latinosdat)  %>% 
   
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
          dosewk = as.numeric(dosewk)) %>% 
@@ -1157,9 +1247,12 @@ vis_miss(data2)
 skim(data = 
        data2
      )
+###################
 
 # Write data 
+###################
 # write.csv(data, file = "../ULLA.csv")
 # write.csv(data2, file = "../merged_iwpc_ULLA.csv")
+###################
 
 

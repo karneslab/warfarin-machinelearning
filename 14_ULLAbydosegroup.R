@@ -60,7 +60,8 @@ latinos = read_csv("../ULLA.csv") %>%
          indication = factor(indication, levels = c("AF", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA"), labels = c("AFIB", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA")),
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"))) %>% 
   mutate_at(.vars = c("site", "sex", "amio", "ei", "target", "smoke", "diabetes", "statin",
-                      "aspirin", "cyp", "indication", "dosegroup", "ethnicity"), .funs = factor) 
+                      "aspirin", "cyp", "indication", "dosegroup", "ethnicity"), .funs = factor) %>% 
+  dplyr::select(-target)
 
 
 
@@ -70,7 +71,7 @@ test = latinos %>% filter(train == 0 )
 
 
 latinosdf = latinos %>% 
-  dplyr::select( - ethnicity, -target, -site)
+  dplyr::select( - ethnicity, -site)
 
 '%nin%' <-Negate('%in%')
 
@@ -213,7 +214,7 @@ fitOneSet <- function(){
   
   test$pred_NLM = predict(newcovars, test)
   
-  R2_newcovars = 1 - (sum((test$pred_newcovars - test$sqrtdose) ^2)/sum((test$sqrtdose - mean(test$sqrtdose)) ^2))
+  R2_newcovars = 1 - (sum((test$pred_NLM - test$sqrtdose) ^2)/sum((test$sqrtdose - mean(test$sqrtdose)) ^2))
   
   
   
@@ -236,9 +237,9 @@ fitOneSet <- function(){
     as.data.frame()
   
   bart <- bartMachine(x1, train$sqrtdose, mem_cache_for_speed = F)
-
   
- testx = test %>% 
+  
+  testx = test %>% 
     dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  , ei  , smoke  ,statin, aspirin, diabetes, sex,country)) %>%
     as.data.frame()
   
@@ -248,7 +249,7 @@ fitOneSet <- function(){
   
   ## MARS 
   # Fit a basic MARS model
-
+  
   
   mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + ei   +sex + smoke  + statin+aspirin+ diabetes+ country,data = train,
                method = "earth",
@@ -264,17 +265,17 @@ fitOneSet <- function(){
   
   #### CLINICAL 
   fitclin = (lm(data = train, 
-            sqrtdose ~ age + height + weight + race + 
-              ei + amio))
+                sqrtdose ~ age + height + weight + race + 
+                  ei + amio))
   
   fitclin$coefficients <- c(4.0376, 
-                        -0.2546,
-                        0.0118,
-                        0.0134,
-                        0.4060,
-                        0.0443,
-                        1.2799,
-                        -0.5695)
+                            -0.2546,
+                            0.0118,
+                            0.0134,
+                            0.4060,
+                            0.0443,
+                            1.2799,
+                            -0.5695)
   
   test$pred_clin = predict(fitclin, test )
   
@@ -282,79 +283,81 @@ fitOneSet <- function(){
   
   ################ results #################
   #########################################
- 
-  
-  mae_white = cbind(iwpc = mae2(test$dosewk[test$race == "white"], test$pred.iwpcmodel[test$race == "white"])$mae,
-              iwpcvars = mae2(test$dosewk[test$race == "white"], test$pred_iwpcvars[test$race == "white"])$mae,
-              svm_iwpc = mae2(test$dosewk[test$race == "white"], test$pred_svm_iwpc[test$race == "white"])$mae,
-              bart_iwpc = mae2(test$dosewk[test$race == "white"], test$pred_bart_iwpc[test$race == "white"])$mae,
-              mars_iwpc = mae2(test$dosewk[test$race == "white"], test$pred_mars_iwpc[test$race == "white"])$mae,
-              newlinear = mae2(test$dosewk[test$race == "white"], test$pred_NLM[test$race == "white"])$mae,
-              svm = mae2(test$dosewk[test$race == "white"], test$pred_svm[test$race == "white"])$mae,
-              mars = mae2(test$dosewk[test$race == "white"], test$pred_mars[test$race == "white"])$mae,
-              bart = mae2(test$dosewk[test$race == "white"], test$pred_bart[test$race == "white"])$mae,
-              clinical= mae2(test$dosewk[test$race == "white"], test$pred_clin[test$race == "white"])$mae)
-  
-
-  mae_black = cbind(iwpc = mae2(test$dosewk[test$race == "Black or African American"], test$pred.iwpcmodel[test$race == "Black or African American"])$mae,
-                    iwpcvars = mae2(test$dosewk[test$race == "Black or African American"], test$pred_iwpcvars[test$race == "Black or African American"])$mae,
-                    svm_iwpc = mae2(test$dosewk[test$race == "Black or African American"], test$pred_svm_iwpc[test$race == "Black or African American"])$mae,
-                    bart_iwpc = mae2(test$dosewk[test$race == "Black or African American"], test$pred_bart_iwpc[test$race == "Black or African American"])$mae,
-                    mars_iwpc = mae2(test$dosewk[test$race == "Black or African American"], test$pred_mars_iwpc[test$race == "Black or African American"])$mae,
-                    newlinear = mae2(test$dosewk[test$race == "Black or African American"], test$pred_NLM[test$race == "Black or African American"])$mae,
-                    svm = mae2(test$dosewk[test$race == "Black or African American"], test$pred_svm[test$race == "Black or African American"])$mae,
-                    mars = mae2(test$dosewk[test$race == "Black or African American"], test$pred_mars[test$race == "Black or African American"])$mae,
-                    bart = mae2(test$dosewk[test$race == "Black or African American"], test$pred_bart[test$race == "Black or African American"])$mae,
-                    clinical= mae2(test$dosewk[test$race == "Black or African American"], test$pred_clin[test$race == "Black or African American"])$mae)
-  
-  mae_mixed = cbind(iwpc = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred.iwpcmodel[test$race == "Mixed or Missing"])$mae,
-                    iwpcvars = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_iwpcvars[test$race == "Mixed or Missing"])$mae,
-                    svm_iwpc = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_svm_iwpc[test$race == "Mixed or Missing"])$mae,
-                    bart_iwpc = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_bart_iwpc[test$race == "Mixed or Missing"])$mae,
-                    mars_iwpc = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_mars_iwpc[test$race == "Mixed or Missing"])$mae,
-                    newlinear = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_NLM[test$race == "Mixed or Missing"])$mae,
-                    svm = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_svm[test$race == "Mixed or Missing"])$mae,
-                    mars = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_mars[test$race == "Mixed or Missing"])$mae,
-                    bart = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_bart[test$race == "Mixed or Missing"])$mae,
-                    clinical= mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_clin[test$race == "Mixed or Missing"])$mae) 
   
   
-  mae_ci_white = cbind(iwpc = mae2(test$dosewk[test$race == "white"], test$pred.iwpcmodel[test$race == "white"])$CI,
-                 iwpcvars = mae2(test$dosewk[test$race == "white"], test$pred_iwpcvars[test$race == "white"])$CI,
-                 svm_iwpc =  mae2(test$dosewk[test$race == "white"], test$pred_svm_iwpc[test$race == "white"])$CI,
-                 bart_iwpc =  mae2(test$dosewk[test$race == "white"], test$pred_bart_iwpc[test$race == "white"])$CI,
-                 mars_iwpc =  mae2(test$dosewk[test$race == "white"], test$pred_mars_iwpc[test$race == "white"])$CI,
-                 newlinear = mae2(test$dosewk[test$race == "white"], test$pred_NLM[test$race == "white"])$CI,
-                 svm = mae2(test$dosewk[test$race == "white"], test$pred_svm[test$race == "white"])$CI,
-                 mars = mae2(test$dosewk[test$race == "white"], test$pred_mars[test$race == "white"])$CI,
-                 bart = mae2(test$dosewk[test$race == "white"], test$pred_bart[test$race == "white"])$CI,
-                 clinical = mae2(test$dosewk[test$race == "white"], test$pred_clin[test$race == "white"])$CI)
+  mae_high = cbind(iwpc = mae2(test$dosewk[test$dosegroup == "high"], test$pred.iwpcmodel[test$dosegroup == "high"])$mae,
+                    iwpcvars = mae2(test$dosewk[test$dosegroup == "high"], test$pred_iwpcvars[test$dosegroup == "high"])$mae,
+                    svm_iwpc = mae2(test$dosewk[test$dosegroup == "high"], test$pred_svm_iwpc[test$dosegroup == "high"])$mae,
+                    bart_iwpc = mae2(test$dosewk[test$dosegroup == "high"], test$pred_bart_iwpc[test$dosegroup == "high"])$mae,
+                    mars_iwpc = mae2(test$dosewk[test$dosegroup == "high"], test$pred_mars_iwpc[test$dosegroup == "high"])$mae,
+                    newlinear = mae2(test$dosewk[test$dosegroup == "high"], test$pred_NLM[test$dosegroup == "high"])$mae,
+                    svm = mae2(test$dosewk[test$dosegroup == "high"], test$pred_svm[test$dosegroup == "high"])$mae,
+                    mars = mae2(test$dosewk[test$dosegroup == "high"], test$pred_mars[test$dosegroup == "high"])$mae,
+                    bart = mae2(test$dosewk[test$dosegroup == "high"], test$pred_bart[test$dosegroup == "high"])$mae,
+                    clinical= mae2(test$dosewk[test$dosegroup == "high"], test$pred_clin[test$dosegroup == "high"])$mae)
   
-  mae_ci_black = cbind(iwpc = mae2(test$dosewk[test$race == "Black or African American"], test$pred.iwpcmodel[test$race == "Black or African American"])$CI,
-                       iwpcvars = mae2(test$dosewk[test$race == "Black or African American"], test$pred_iwpcvars[test$race == "Black or African American"])$CI,
-                       svm_iwpc =  mae2(test$dosewk[test$race == "Black or African American"], test$pred_svm_iwpc[test$race == "Black or African American"])$CI,
-                       bart_iwpc =  mae2(test$dosewk[test$race == "Black or African American"], test$pred_bart_iwpc[test$race == "Black or African American"])$CI,
-                       mars_iwpc =  mae2(test$dosewk[test$race == "Black or African American"], test$pred_mars_iwpc[test$race == "Black or African American"])$CI,
-                       newlinear = mae2(test$dosewk[test$race == "Black or African American"], test$pred_NLM[test$race == "Black or African American"])$CI,
-                       svm = mae2(test$dosewk[test$race == "Black or African American"], test$pred_svm[test$race == "Black or African American"])$CI,
-                       mars = mae2(test$dosewk[test$race == "Black or African American"], test$pred_mars[test$race == "Black or African American"])$CI,
-                       bart = mae2(test$dosewk[test$race == "Black or African American"], test$pred_bart[test$race == "Black or African American"])$CI,
-                       clinical = mae2(test$dosewk[test$race == "Black or African American"], test$pred_clin[test$race == "Black or African American"])$CI)
   
-  mae_ci_mixed = cbind(iwpc = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred.iwpcmodel[test$race == "Mixed or Missing"])$CI,
-                       iwpcvars = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_iwpcvars[test$race == "Mixed or Missing"])$CI,
-                       svm_iwpc =  mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_svm_iwpc[test$race == "Mixed or Missing"])$CI,
-                       bart_iwpc =  mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_bart_iwpc[test$race == "Mixed or Missing"])$CI,
-                       mars_iwpc =  mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_mars_iwpc[test$race == "Mixed or Missing"])$CI,
-                       newlinear = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_NLM[test$race == "Mixed or Missing"])$CI,
-                       svm = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_svm[test$race == "Mixed or Missing"])$CI,
-                       mars = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_mars[test$race == "Mixed or Missing"])$CI,
-                       bart = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_bart[test$race == "Mixed or Missing"])$CI,
-                       clinical = mae2(test$dosewk[test$race == "Mixed or Missing"], test$pred_clin[test$race == "Mixed or Missing"])$CI)
+  mae_int = cbind(iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred.iwpcmodel[test$dosegroup == "intermediate"])$mae,
+                    iwpcvars = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_iwpcvars[test$dosegroup == "intermediate"])$mae,
+                    svm_iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_svm_iwpc[test$dosegroup == "intermediate"])$mae,
+                    bart_iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_bart_iwpc[test$dosegroup == "intermediate"])$mae,
+                    mars_iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_mars_iwpc[test$dosegroup == "intermediate"])$mae,
+                    newlinear = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_NLM[test$dosegroup == "intermediate"])$mae,
+                    svm = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_svm[test$dosegroup == "intermediate"])$mae,
+                    mars = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_mars[test$dosegroup == "intermediate"])$mae,
+                    bart = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_bart[test$dosegroup == "intermediate"])$mae,
+                    clinical= mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_clin[test$dosegroup == "intermediate"])$mae)
+  
+  mae_low = cbind(iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred.iwpcmodel[test$dosegroup == "low"])$mae,
+                    iwpcvars = mae2(test$dosewk[test$dosegroup == "low"], test$pred_iwpcvars[test$dosegroup == "low"])$mae,
+                    svm_iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred_svm_iwpc[test$dosegroup == "low"])$mae,
+                    bart_iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred_bart_iwpc[test$dosegroup == "low"])$mae,
+                    mars_iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred_mars_iwpc[test$dosegroup == "low"])$mae,
+                    newlinear = mae2(test$dosewk[test$dosegroup == "low"], test$pred_NLM[test$dosegroup == "low"])$mae,
+                    svm = mae2(test$dosewk[test$dosegroup == "low"], test$pred_svm[test$dosegroup == "low"])$mae,
+                    mars = mae2(test$dosewk[test$dosegroup == "low"], test$pred_mars[test$dosegroup == "low"])$mae,
+                    bart = mae2(test$dosewk[test$dosegroup == "low"], test$pred_bart[test$dosegroup == "low"])$mae,
+                    clinical= mae2(test$dosewk[test$dosegroup == "low"], test$pred_clin[test$dosegroup == "low"])$mae) 
+  
+  
+  #### MAE CIS 
+  
+  mae_ci_high = cbind(iwpc = mae2(test$dosewk[test$dosegroup == "high"], test$pred.iwpcmodel[test$dosegroup == "high"])$CI,
+                       iwpcvars = mae2(test$dosewk[test$dosegroup == "high"], test$pred_iwpcvars[test$dosegroup == "high"])$CI,
+                       svm_iwpc =  mae2(test$dosewk[test$dosegroup == "high"], test$pred_svm_iwpc[test$dosegroup == "high"])$CI,
+                       bart_iwpc =  mae2(test$dosewk[test$dosegroup == "high"], test$pred_bart_iwpc[test$dosegroup == "high"])$CI,
+                       mars_iwpc =  mae2(test$dosewk[test$dosegroup == "high"], test$pred_mars_iwpc[test$dosegroup == "high"])$CI,
+                       newlinear = mae2(test$dosewk[test$dosegroup == "high"], test$pred_NLM[test$dosegroup == "high"])$CI,
+                       svm = mae2(test$dosewk[test$dosegroup == "high"], test$pred_svm[test$dosegroup == "high"])$CI,
+                       mars = mae2(test$dosewk[test$dosegroup == "high"], test$pred_mars[test$dosegroup == "high"])$CI,
+                       bart = mae2(test$dosewk[test$dosegroup == "high"], test$pred_bart[test$dosegroup == "high"])$CI,
+                       clinical = mae2(test$dosewk[test$dosegroup == "high"], test$pred_clin[test$dosegroup == "high"])$CI)
+  
+  mae_ci_int = cbind(iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred.iwpcmodel[test$dosegroup == "intermediate"])$CI,
+                            iwpcvars = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_iwpcvars[test$dosegroup == "intermediate"])$CI,
+                            svm_iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_svm_iwpc[test$dosegroup == "intermediate"])$CI,
+                            bart_iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_bart_iwpc[test$dosegroup == "intermediate"])$CI,
+                            mars_iwpc = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_mars_iwpc[test$dosegroup == "intermediate"])$CI,
+                            newlinear = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_NLM[test$dosegroup == "intermediate"])$CI,
+                            svm = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_svm[test$dosegroup == "intermediate"])$CI,
+                            mars = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_mars[test$dosegroup == "intermediate"])$CI,
+                            bart = mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_bart[test$dosegroup == "intermediate"])$CI,
+                            clinical= mae2(test$dosewk[test$dosegroup == "intermediate"], test$pred_clin[test$dosegroup == "intermediate"])$CI)
+  
+  mae_ci_low = cbind(iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred.iwpcmodel[test$dosegroup == "low"])$CI,
+                  iwpcvars = mae2(test$dosewk[test$dosegroup == "low"], test$pred_iwpcvars[test$dosegroup == "low"])$CI,
+                  svm_iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred_svm_iwpc[test$dosegroup == "low"])$CI,
+                  bart_iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred_bart_iwpc[test$dosegroup == "low"])$CI,
+                  mars_iwpc = mae2(test$dosewk[test$dosegroup == "low"], test$pred_mars_iwpc[test$dosegroup == "low"])$CI,
+                  newlinear = mae2(test$dosewk[test$dosegroup == "low"], test$pred_NLM[test$dosegroup == "low"])$CI,
+                  svm = mae2(test$dosewk[test$dosegroup == "low"], test$pred_svm[test$dosegroup == "low"])$CI,
+                  mars = mae2(test$dosewk[test$dosegroup == "low"], test$pred_mars[test$dosegroup == "low"])$CI,
+                  bart = mae2(test$dosewk[test$dosegroup == "low"], test$pred_bart[test$dosegroup == "low"])$CI,
+                  clinical= mae2(test$dosewk[test$dosegroup == "low"], test$pred_clin[test$dosegroup == "low"])$CI)
   
   # 
-  mae_dat = cbind(mae_white, mae_black, mae_mixed)
-  mae_ci_dat = cbind(mae_ci_white, mae_ci_black, mae_ci_mixed)
+  mae_dat = cbind(mae_high, mae_int, mae_low)
+  mae_ci_dat = cbind(mae_ci_high, mae_ci_int, mae_ci_low)
   
   mae = t(rbind(mae_dat, mae_ci_dat))
   
@@ -365,13 +368,13 @@ fitOneSet <- function(){
     dplyr::select(name, MAE = V1, lower, upper) %>% 
     mutate(name = gsub("\\..*", "", name),
            name = factor(name,levels = c("iwpc", "iwpcvars", "svm_iwpc", "bart_iwpc", "mars_iwpc", "newlinear", "svm", "mars", "bart", "clinical"), labels = c("IWPC", "IWPCV", "IWPC_SVM", "IWPC_BART", "IWPC_MARS", "NLM", "SVM", "MARS", "BART", "CLINICAL")),
-    race = rep(1:3,each=10),
-    race = factor(race, levels = c("1", "2", "3"), labels = c("white", "Black or African American", "Mixed or Missing")))
+           dosegroup = rep(1:3,each=10),
+           dosegroup = factor(dosegroup, levels = c("1", "2", "3"), labels = c("High", "Intermediate", "Low")))
   
   resultsdat = test %>% 
     pivot_longer(cols = starts_with("pred")) %>% 
     mutate(name = gsub("pred*.", "", name)) %>% 
-    group_by(name, race) %>% 
+    group_by(name, dosegroup) %>% 
     mutate(preddose = value^2,
            change = abs((preddose - dosewk)/dosewk),
            in20 = if_else(change < .2,1,0),
@@ -379,20 +382,23 @@ fitOneSet <- function(){
     ) %>%
     ungroup() %>% 
     mutate(a = cut(change, breaks = 30)) %>% 
-    group_by(name,race) %>% 
+    group_by(name,dosegroup) %>% 
     mutate(sum = n()) %>% 
-    group_by(name,a ,race) %>% 
+    group_by(name,a ,dosegroup) %>% 
     mutate(n = n()/sum)
   
+ 
   
   
   resultsdat2 = resultsdat %>% 
-    group_by(name,race) %>% 
+    group_by(name,dosegroup) %>% 
     summarise(prop = mean(prop)*100,
               n = sum(in20)) %>% 
-    mutate(name = factor(name, levels = c("iwpcmodel", "iwpcvars","svm_iwpc", "bart_iwpc", "mars_iwpc" ,"NLM", "svm", "bart", "mars", "clin"), labels = c("IWPC", "IWPCV","IWPC_SVM", "IWPC_BART", "IWPC_MARS", "NLM", "SVM", "BART", "MARS", "CLINICAL"))) %>% 
+    mutate(name = factor(name, levels = c("iwpcmodel", "iwpcvars","svm_iwpc", "bart_iwpc", "mars_iwpc" ,"NLM", "svm", "bart", "mars", "clin"), labels = c("IWPC", "IWPCV","IWPC_SVM", "IWPC_BART", "IWPC_MARS", "NLM", "SVM", "BART", "MARS", "CLINICAL")),
+           dosegroup = factor(dosegroup, levels = c("high", "intermediate", "low"),
+                              labels = c("High","Intermediate" ,"Low"))) %>% 
     arrange(name) %>% 
-    inner_join(mae, by = c("name","race")) %>% 
+    inner_join(mae, by = c("name","dosegroup")) %>% 
     mutate_if(is.numeric,round,2) 
   
   return(resultsdat2)
@@ -410,14 +416,14 @@ fullReplicates <- lapply(1:100, function(x){
 
 
 dat = do.call(rbind, fullReplicates) %>% 
-  group_by(name,race) %>% 
+  group_by(name,dosegroup) %>% 
   mutate(name = factor(name, levels = c("IWPC", "IWPCV","IWPC_SVM", "IWPC_MARS", "IWPC_BART", "NLM","SVM", "MARS", "BART", "CLINICAL"),
-                       labels = c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART", "CLINICAL"))) %>% 
+                       labels = c("IWPC", "IWPCV", "IWPC SVR", "IWPC MARS", "IWPC BART", "NLM", "SVR","MARS", "BART", "CLINICAL"))) %>%   filter(name != "CLINICAL") %>% 
   as_data_frame()
 
- 
+
 dat2 = dat %>% 
-  group_by(race, name) %>% 
+  group_by(dosegroup, name) %>% 
   summarise(prop = mean(prop),
             MAE = mean(MAE),
             lower = mean(lower),
@@ -427,17 +433,19 @@ dat2 = dat %>%
   unite("MAE (95% CI)", MAE:CI, sep = "(")%>% 
   mutate(`MAE (95% CI)`= gsub("\\(", " (", `MAE (95% CI)`),
          `MAE (95% CI)` = paste(`MAE (95% CI)`,")", sep = ""))
-#write_csv(dat2, "../dats_ULLAbyrace.csv" )
+
+#write_csv(dat2, "../dats_ULLAbydosegroup.csv" )
 
 hlinedat = dat %>% 
-  # group_by(race) %>% 
+  # group_by(dosegroup) %>% 
   summarise(prop = median(prop))
 
-race_n <- c(
-  'white'="White (n = 1,153)",
-  'Black or African American'="Black or African \nAmerican (n = 292)",
-  'Mixed or Missing'="Mixed or Missing (n = 289)"
+group_n <- c(
+  'High'="High (n = 189)",
+  'Intermediate'="Intermediate (n = 1,128)",
+  'Low'="Low (n = 417)"
 )
+
 
 p3 = ggplot(dat, aes(name, prop, color = name)) +
   geom_hline(data = hlinedat, aes(yintercept=prop),
@@ -445,52 +453,55 @@ p3 = ggplot(dat, aes(name, prop, color = name)) +
   geom_boxplot(width=.25, alpha = .2) + 
   geom_jitter(width = .2, alpha = .1) + 
   theme_minimal()+
-  theme(legend.position = "none",
-        panel.grid.minor.x  = element_blank(),
+  theme(
+        panel.grid.minor.x = element_blank(),
         panel.grid.major.x = element_blank(),
         axis.text.x = element_blank(),
         # axis.text.y = element_text(size = 20),
         # axis.title.y = element_text(size = 22),
         # legend.text = element_text(size = 20),
         strip.text.x = element_text(size = 5),
-        # legend.title = element_text(size = 22)
+        # legend.title = element_text(size = 22),
+
+        legend.position = "none",
+        # legend.direction = 'horizontal'
+        
         ) + 
-  labs(x = "", y = "", color = "") +
-  facet_wrap(race~., labeller = as_labeller(race_n))+
-  scale_color_manual(values = c("#F8766D" ,"#D39200", "#93AA00", "#00BA38", "#00C19F" ,"#00B9E3" ,"#619CFF", "#DB72FB", "#FF61C3", "gray30")) +
-  guides(color = guide_legend(ncol = 5))+
+  labs(x = "", y = " ", color = " ") +
+  facet_wrap(.~dosegroup, nrow = 1, labeller = as_labeller(group_n))+
+  scale_color_manual(values = c("#F8766D" ,"#D39200", "#93AA00", "#00BA38", "#00C19F" ,"#00B9E3" ,"#619CFF", "#DB72FB", "#FF61C3", "gray30")) + 
+  guides(color = guide_legend(ncol = 5)) +
   ylim(9,75)
 
-# pdf("../fig2ulla_byrace.pdf", width = 8, height = 5)
+ #pdf("../fig4ulla_bydosegroup.pdf", width = 8, height = 5)
 
 p3
-
-p3_race = p3
-# dev.off()
+p3_dosegroup = p3 
+#dev.off()
 
 dat3 = dat %>% 
-  group_by( race) %>% 
+  group_by(dosegroup) %>% 
   summarise(prop = mean(prop)) %>% 
   as_data_frame() %>% 
-  mutate(race = factor(race))
+  mutate(dosegroup = factor(dosegroup))
 
 friedman_test(prop ~ name |replicate, data = dat3)
 
 prop_wilcox = as.data.frame(dat) %>%
-  group_by(race) %>% 
+  group_by(dosegroup) %>% 
   wilcox_test(prop ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
 MAE_wilcox = as.data.frame(dat) %>%
-  group_by(race) %>% 
+  group_by(dosegroup) %>% 
   wilcox_test(MAE ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
 wilcox_results_ULLA = rbind(prop_wilcox, MAE_wilcox)
-write_csv(wilcox_results_ULLA, "../wilcox_results_ULLA_byrace.csv" )
+#write_csv(wilcox_results_ULLA, "../wilcox_results_ULLA_bydosegroup.csv" )
 
 
 ### put the plots together
 library(cowplot)
 
-fig2 = plot_grid(p3, nrow = 1) 
-save_plot("../fig2.tiff", fig2, base_height = 15, base_width = 12.7,units = "cm", bg = "transparent")
-export::graph2ppt(fig2, file="../fig2.pptx", width=8.4, height = 3.5, bg = "transparent")
+fig3 = plot_grid(p3_dosegroup,p3_race,p3_country, nrow = 3) 
+ggsave("../fig2.tiff", fig3, height = 15, width = 12.7,units = "cm",  bg = "transparent")
+export::graph2ppt(fig3, file="../fig3.pptx", width=8.4, height = 3.5, bg = "transparent")

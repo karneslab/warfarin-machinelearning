@@ -52,18 +52,19 @@ latinos = read_csv("../ULLA.csv") %>%
          vkor = factor(vkor, levels = c("GG", "AG","GA", "AA", "Missing"), labels = c("GG", "AG","AG", "AA", "Missing")),
          indication = factor(indication, levels = c("AF", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA"), labels = c("AFIB", "AFIB", "DVT/PE", "MVR", "OTHER", "TIA")),
          race = factor(race, levels = c("white", "Asian", "Black or African American", "Mixed or Missing"))) %>% 
+  droplevels() %>% 
   mutate_at(.vars = c("site", "sex", "amio", "ei", "smoke", "diabetes", "statin",
-                      "aspirin", "cyp", "indication", "country", "ethnicity"), .funs = factor) 
-
-
-
-train = latinos %>% sample_frac(.7) %>% mutate(train = 1) 
-latinos$train = if_else(latinos$X1 %in% train$X1, 1, 0)
-test = latinos %>% filter(train == 0 )
+                      "aspirin", "cyp", "indication", "country", "ethnicity", "metformin"), .funs = factor) 
 
 
 latinosdf = latinos %>% 
-  dplyr::select(-X1, - ethnicity, -site, -target)
+  dplyr::select( -ethnicity, -site, -target)
+
+train = latinosdf %>% sample_frac(.7) %>% mutate(train = 1) 
+latinosdf$train = if_else(latinosdf$X1 %in% train$X1, 1, 0)
+train = train %>% dplyr::select(-X1)
+test = latinosdf %>% dplyr::filter(train == 0 ) %>% dplyr::select(-X1, -train)
+
 
 '%nin%' <-Negate('%in%')
 
@@ -115,22 +116,22 @@ fitOneSet <- function(){
   
   #### IWPC LM 
   fit = (lm(data = train, 
-            sqrtdose ~ age + height + weight + vkor + cyp + race + 
+            sqrtdose ~ age + height + weight  + cyp + vkor +race + 
               ei + amio))
   
   fit$coefficients <- c(5.6044, 
                         -0.2614,
                         0.0087,
                         0.0128,
-                        -0.8677,
-                        -1.6974,
-                        -0.4854,
                         -0.5211,
                         -0.9357,
                         -1.0616,
                         -1.9206,
                         -2.3312,
                         -0.2188,
+                        -0.8677,
+                        -1.6974,
+                        -0.4854,
                         -0.2760,
                         -0.1032,
                         1.1816,
@@ -217,7 +218,7 @@ fitOneSet <- function(){
   
   
   #### Kitchen skin model 
-  newcovars = lm(sqrtdose ~ age + height + weight + sex + cyp + vkor + race + country  +ei + amio+statin+ aspirin+ indication+diabetes + smoke ,data = train)
+  newcovars = lm(sqrtdose ~ age + height + weight + cyp + vkor + race  +ei + amio+country+ sex+ statin+ aspirin+ metformin+indication+diabetes + smoke ,data = train)
   
   test$pred_NLM = predict(newcovars, test)
   train$pred_NLM = predict(newcovars, train)
@@ -232,7 +233,7 @@ fitOneSet <- function(){
   ################ ML ######################
   
   
-  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + country+ ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train)
+  OptModelsvm = svm(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  + country+ ei   +sex + smoke  + statin+ aspirin+ diabetes + metformin,data = train)
   
   
   test$pred_svm =stats::predict(OptModelsvm,test)
@@ -244,14 +245,14 @@ fitOneSet <- function(){
   ## Bayesian Additive Regression Trees (BART)
   
   x1 = train %>%
-    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  ,country, ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  ,country, ei  , smoke  ,statin,aspirin, diabetes, sex, metformin)) %>%
     as.data.frame()
   
   bart <- bartMachine(x1, train$sqrtdose, mem_cache_for_speed = F)
   
   
   testx = test %>% 
-    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  ,country, ei  , smoke  ,statin,aspirin, diabetes, sex)) %>%
+    dplyr::select(c(vkor,cyp ,age  , weight   , amio  ,indication , height ,race  ,country, ei  , smoke  ,statin,aspirin, diabetes, sex, metformin)) %>%
     as.data.frame()
   
   test$pred_bart = predict(bart, testx)
@@ -263,7 +264,7 @@ fitOneSet <- function(){
   # Fit a basic MARS model
   
   
-  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  +country+ ei   +sex + smoke  + statin+ aspirin+ diabetes,data = train,
+  mars = train(sqrtdose ~ vkor + cyp + age  + weight   + amio  + indication + height +race  +country+ ei   +sex + smoke  + statin+ aspirin+ diabetes+metformin,data = train,
                method = "earth",
                metric = "MAE"
   )
@@ -439,7 +440,7 @@ r2s = do.call(rbind,lapply(50, function(x) unlist(fullReplicates[[x]][[3]]))) %>
 betas = do.call(rbind, lapply(50, function(x) do.call(rbind.data.frame,fullReplicates[[x]][[1]]))) %>% rownames_to_column()
 betas$Estimate = round(betas$Estimate, digits = 2)
 betas$`Std. Error` = round(betas$`Std. Error`, digits =2 )
-betas$call = paste(betas$Estimate,"Â±",betas$`Std. Error`)
+betas$call = paste(betas$Estimate,"±",betas$`Std. Error`)
 betas$call = str_replace_all(string=betas$call, pattern=" ", repl="")
 betas$`Pr(>|t|)` = signif(betas$`Pr(>|t|)`, digits = 3)
 betas$`Pr(>|t|)` = gsub("e", "x10",betas$`Pr(>|t|)` )
@@ -473,8 +474,12 @@ p3 = ggplot(dat %>%  filter(train == 0 ), aes(name, prop, color = name)) +
          panel.grid.minor.x = element_blank(),
          panel.grid.major.x = element_blank(),
         axis.text.x = element_blank(),
-        axis.text.y = element_text(size = 20),
-        axis.title.y  = element_text(size = 22,color = "gray30")) +
+        axis.text.y = element_text(
+          #size = 20
+        ),
+        axis.title.y  = element_text(color = "gray30",
+                                     #size = 22
+                                     )) +
   labs(x = "", y = "Percentage Within 20%") +
   ylim(c(40,54))
 
@@ -498,4 +503,4 @@ wilcox_results_ULLA = rbind(prop_wilcox, MAE_wilcox)
 # write_csv(wilcox_results_ULLA, "../wilcox_results_ULLA.csv" )
 
 
-# save.image("~/Documents/IWPC/05_workspace.RData")
+# save.image("05_workspace.RData")

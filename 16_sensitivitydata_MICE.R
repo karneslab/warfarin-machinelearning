@@ -2,6 +2,7 @@ library(tidyverse)
 library(readxl)
 library(skimr)
 library(naniar)
+library(mice)
 #### prep for merging all hispanics + brazil data 
 
 
@@ -201,8 +202,8 @@ mtsdat = mtsdat %>%
                                  "*1/*2",
                                  "*1/*3",
                                  "Missing", 
-                                 "Missing")),
-         diabetes = sample(c(0,1),nrow(mtsdat), prob = c(.5,.5), replace = T),
+                                 "Missing"))
+         #diabetes = sample(c(0,1),nrow(mtsdat), prob = c(.5,.5), replace = T),
          # diabetes = if_else(is.na(diabetes), "0", as.character(diabetes))
   ) %>% 
   mutate_at(.vars = c("smoke", 
@@ -349,9 +350,9 @@ uprdat = uprdat %>%
                         phenytoin == 1 | 
                         rifampin == 1,
                       "1", "0"),
-          statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
+        #  statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
          # statin = if_else(is.na(statin), "0", as.character(statin)),
-          aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(aspirin)),
+       #   aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(aspirin)),
          # aspirin = if_else(is.na(aspirin), "0", as.character(aspirin)),
          amio = replace_na(amio, "0"),
          ei = replace_na(ei, "0"),
@@ -504,14 +505,14 @@ brazil_df = brazil_df %>%
                                       if_else(indication_for_warfarin == "cardiac valve replacement", "MVR", 
                                               if_else(indication_for_warfarin == "stroke", "TIA", "OTHER")))),
          target = "2.5", 
-          smoke = if_else(is.na(smoking), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoking)),
+        #  smoke = if_else(is.na(smoking), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoking)),
          # smoke = if_else(is.na(smoking), "0", as.character(smoking)),
-          diabetes = if_else(is.na(diabetic), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(diabetic)),
+        #  diabetes = if_else(is.na(diabetic), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(diabetic)),
          # diabetes = if_else(is.na(diabetic), "0", as.character(diabetic)),
-         diabetes = as.factor(diabetes),
-         smoke = as.factor(smoke),
+         diabetes = as.factor(diabetic),
+         smoke = as.factor(smoking),
          aspirin = as.factor(aspirin),
-         statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
+        # statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
          # statin = if_else(is.na(statin), "0", as.character(statin)),
          statin = as.factor(statin)) %>% 
   dplyr::select(site, dosewk, vkor, cyp,
@@ -612,7 +613,7 @@ brazil_df2 = brazil_df2 %>%
          height = height*100,
          vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
          smoke = factor(smoke, levels = c("YES", "no", "No", "Ex"), labels = c("1","0","0", "0")),
-          smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
+         # smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
          # smoke = if_else(is.na(smoke), "0", as.character(smoke)),
          smoke = as.factor(smoke),
          diabetes = if_else(diabetes == "YES", "1", "0")) %>% 
@@ -687,15 +688,19 @@ brazil_df3 = brazil_df3 %>%
          height = as.numeric(height)*100,
          # smoke = if_else(is.na(smoke) | smoke == "n" | smoke == "ex", "0", "1"),
          smoke = if_else(smoke == "n",0,1) , 
-         smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
-         aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(aspirin)),
+         smoke = as.factor(smoke),
+         diabetes = as.factor(diabetes),
+         #smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
+         #aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(aspirin)),
          # aspirin = if_else(is.na(aspirin), "0", as.character(aspirin)),
-          statin = if_else(is.na(statin), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(statin)),
+        #  statin = if_else(is.na(statin), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(statin)),
          # statin = if_else(is.na(statin), "0", as.character(statin)), 
+        statin = as.factor(statin),
+        aspirin = as.factor(aspirin),
          indication = if_else(is.na(indication),"OTHER", indication),
          amio = if_else(is.na(amio), "0", as.character(amio)),
          ei = if_else(is.na(ei), "0", as.character(ei)),
-          diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(diabetes)),
+         # diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), as.integer(diabetes)),
          # diabetes = if_else(is.na(diabetes), "0", as.character(diabetes)),
          weight = as.numeric(weight), 
          dosewk = as.numeric(dosewk))%>% 
@@ -770,8 +775,8 @@ codat = CO1b %>%
     statin = as_factor(Lovastatin),
     aspirin = if_else(grepl("aspirin", ignore.case = T, `Antiplatelet drugs`), "1", "0"),
     # smoke = "0",
-    smoke = sample(0:1, n(), replace =T, prob = c(0.5,0.5)),
-    smoke = as.factor(smoke),
+   # smoke = sample(0:1, n(), replace =T, prob = c(0.5,0.5)),
+    smoke = NA,
     diabetes = if_else(diabetes == 1, "1", diabetes),
  #  diabetes = as.integer(diabetes),
     # diabetes = if_else(is.na(diabetes),
@@ -794,60 +799,60 @@ codat = CO1b %>%
 ### COL military 
 ####################
 #################
-CO2 <- read_excel("../COL2.xlsx") %>% 
-  filter(WARMGSEM1 >7,
-         WARMGSEM1 <= 175) 
-
-skim(CO2)
-
-codat2 = CO2 %>% 
-  mutate(
-    race = "Mixed or Missing", 
-    ethnicity = "Hispanic or Latino",
-    country = "Colombia", 
-    site = "30", 
-    age = cut(EDAD_ANOS, 
-              breaks=c(10, 20, 30, 40, 50, 60, 70,80, 90, 100), 
-              right = FALSE, 
-              labels = c("10 - 19", "20 - 29", "30 - 39",
-                         "40 - 49", "50 - 59", "60 - 69", 
-                         "70 - 79", "80 - 89","90+")),
-    dosewk = WARMGSEM1,
-    age = as.numeric(age),
-    height = if_else(is.na(TALLA_CM), mean(as.numeric(TALLA_CM), na.rm= T), as.numeric(TALLA_CM)),
-    # height = height*100,
-    weight = PESO_KG,
-    vkor = VKORC1rs9923231,
-    cyp = if_else(CYP2C9rs1799853 == "22" & `CYP2CPrs1057910` == "11", "*2/*2",
-                  if_else(CYP2C9rs1799853 == "12*" & CYP2CPrs1057910 == "11", "*1/*2",
-                          if_else(CYP2C9rs1799853 == "12" & CYP2CPrs1057910 == "13*","*2/*3",
-                                  if_else(CYP2C9rs1799853 == "11" & CYP2CPrs1057910 == "13", "*1/*3", "*1/*1")))),
-    cyp = if_else(is.na(cyp), "Missing", cyp),
-    ei= if_else(FENITOINA == 1 | CARBAMACEPINA == 1 | RIFAMPICINA == 1, 1, 0),
-    ei = as_factor(ei),
-    amio = if_else(is.na(AMIODARONA), 0, if_else(AMIODARONA == 0, 0, 1)),
-    amio = as_factor(amio),
-    indication = if_else(VALVULOPATIACARDIACA == 1, "MVR",
-                         if_else(FIBRIAURICULAR == 1, "AFIB", 
-                                 if_else(ACVTROMBOTICO == 1, "TIA", 
-                                         if_else(TROMBOSISVENOSA == 1 | EMBPULMONAR==1, "DVT/PE", "OTHER")))),
-    statin = as_factor(ESTATINAS),
-    aspirin = as_factor(ASPIRINA),
-    # smoke = if_else(is.na(TABAQUISMO), 0,
-    #                 if_else(TABAQUISMO == 0, 0, 1)),
-    smoke = as.integer(TABAQUISMO),
-    smoke = if_else(is.na(smoke), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), (smoke)),
-    smoke = as_factor(smoke),
-    diabetes = as.factor(DIABETESMELLITUS),
-    target = "2.5", 
-    sex = if_else(SEXO == "1", "0", "1"),
-    metformin = 0,
-    metformin= as_factor(metformin)
-  ) %>% 
-  dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target, metformin) %>% 
-  mutate_if(
-    is.character, as.factor
-  )
+# CO2 <- read_excel("../COL2.xlsx") %>% 
+#   filter(WARMGSEM1 >7,
+#          WARMGSEM1 <= 175) 
+# 
+# skim(CO2)
+# 
+# codat2 = CO2 %>% 
+#   mutate(
+#     race = "Mixed or Missing", 
+#     ethnicity = "Hispanic or Latino",
+#     country = "Colombia", 
+#     site = "30", 
+#     age = cut(EDAD_ANOS, 
+#               breaks=c(10, 20, 30, 40, 50, 60, 70,80, 90, 100), 
+#               right = FALSE, 
+#               labels = c("10 - 19", "20 - 29", "30 - 39",
+#                          "40 - 49", "50 - 59", "60 - 69", 
+#                          "70 - 79", "80 - 89","90+")),
+#     dosewk = WARMGSEM1,
+#     age = as.numeric(age),
+#     height = if_else(is.na(TALLA_CM), mean(as.numeric(TALLA_CM), na.rm= T), as.numeric(TALLA_CM)),
+#     # height = height*100,
+#     weight = PESO_KG,
+#     vkor = VKORC1rs9923231,
+#     cyp = if_else(CYP2C9rs1799853 == "22" & `CYP2CPrs1057910` == "11", "*2/*2",
+#                   if_else(CYP2C9rs1799853 == "12*" & CYP2CPrs1057910 == "11", "*1/*2",
+#                           if_else(CYP2C9rs1799853 == "12" & CYP2CPrs1057910 == "13*","*2/*3",
+#                                   if_else(CYP2C9rs1799853 == "11" & CYP2CPrs1057910 == "13", "*1/*3", "*1/*1")))),
+#     cyp = if_else(is.na(cyp), "Missing", cyp),
+#     ei= if_else(FENITOINA == 1 | CARBAMACEPINA == 1 | RIFAMPICINA == 1, 1, 0),
+#     ei = as_factor(ei),
+#     amio = if_else(is.na(AMIODARONA), 0, if_else(AMIODARONA == 0, 0, 1)),
+#     amio = as_factor(amio),
+#     indication = if_else(VALVULOPATIACARDIACA == 1, "MVR",
+#                          if_else(FIBRIAURICULAR == 1, "AFIB", 
+#                                  if_else(ACVTROMBOTICO == 1, "TIA", 
+#                                          if_else(TROMBOSISVENOSA == 1 | EMBPULMONAR==1, "DVT/PE", "OTHER")))),
+#     statin = as_factor(ESTATINAS),
+#     aspirin = as_factor(ASPIRINA),
+#     # smoke = if_else(is.na(TABAQUISMO), 0,
+#     #                 if_else(TABAQUISMO == 0, 0, 1)),
+#     smoke = as.integer(TABAQUISMO),
+#     smoke = if_else(is.na(smoke), sample(0:1, n(), replace =T, prob = c(0.5,0.5)), (smoke)),
+#     smoke = as_factor(smoke),
+#     diabetes = as.factor(DIABETESMELLITUS),
+#     target = "2.5", 
+#     sex = if_else(SEXO == "1", "0", "1"),
+#     metformin = 0,
+#     metformin= as_factor(metformin)
+#   ) %>% 
+#   dplyr::select(site, dosewk, age, height, weight, cyp, vkor, race, ethnicity, country, amio, aspirin, statin, smoke, diabetes, ei, indication, sex, target, metformin) %>% 
+#   mutate_if(
+#     is.character, as.factor
+#   )
 
 ###########################
 
@@ -857,8 +862,8 @@ SA  = full_join(codat, brazilmerged2)
 
 
 # vis_miss(SA)
-# 
-SA2 = full_join(SA, codat2)
+# skim(SA)
+#SA2 = full_join(SA, codat2)
   
 #############################
 
@@ -990,20 +995,20 @@ iwpcdat = iwpcdat %>%
                        statin7 == "1",
                      "1",
                      "0"),
-    statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
+   # statin = if_else(is.na(statin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(statin)),
     # statin = if_else(is.na(statin), "0", as.character(statin)),
     # smoke = if_else(is.na(smoke), "0", as.character(smoke)), 
-     smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
+   #  smoke = if_else(is.na(smoke), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(smoke)),
     ei = if_else(carbamaz == "1" |
                    phenytoin == "1" |
                    rifampin == "1",
                  "1",
                  "0"),
     ei = replace_na(ei, "0"),
-     aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(aspirin)),
+     #aspirin = if_else(is.na(aspirin), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(aspirin)),
     # aspirin = if_else(is.na(aspirin),"0", as.character(aspirin)),
     # diabetes = if_else(is.na(diabetes), "0", as.character(diabetes)),
-    diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(diabetes)),
+   # diabetes = if_else(is.na(diabetes), sample(0:1, n(), replace = T, prob = c(.5,.5)), as.integer(diabetes)),
     amio = replace_na(amio, "0"), 
     indication = if_else(indication %in% 
                            c("4", 
@@ -1220,7 +1225,7 @@ iwpc_df= iwpc_df %>%
 
 ##### MERGE ALL AND INSPECT
 ###################
-data = full_join(SA2, latinosdat)  %>% 
+data = full_join(SA, latinosdat)  %>% 
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
          dosewk = as.numeric(dosewk)) %>% 
   filter(site != "27",
@@ -1228,7 +1233,8 @@ data = full_join(SA2, latinosdat)  %>%
          weight >=35,
          weight <= 150,
          height <= 200,
-         height >= 130)
+         height >= 130) %>% 
+  select(-target)
 
 data2 = full_join(data, iwpc_df) %>% 
   mutate(vkor = if_else(is.na(vkor), "Missing", as.character(vkor)),
@@ -1243,15 +1249,20 @@ data2 = full_join(data, iwpc_df) %>%
          weight <= 150,
          height <= 200,
          height >= 130) %>% 
-  dplyr::select( -ID, -target) %>% 
-  droplevels()
+  dplyr::select( -ID) %>% 
+  droplevels() %>% 
+  mutate_if(is.character, as.factor)
 
 vis_miss(data2)
 visdat::vis_miss(data)
 
 ###################
-
+# IMPUTATION # 
+# !! ##
+# MICE ### 
+imp = mice(data2)
+imp_data = complete(imp)
 # Write data 
 
-# write.csv(data2, file = "../merged_iwpc_ULLAsens.csv")
+# write.csv(imp_data, file = "../merged_iwpc_ULLAsens_imp.csv")
 

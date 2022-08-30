@@ -43,6 +43,7 @@ iwpcdat = iwpc %>%
                 rifampin = `Rifampin or Rifampicin`,
                 amio = `Amiodarone (Cordarone)`,
                 diabetes = `Diabetes`, 
+                meds = `Medications`,
                 target = `Target INR`,
                 target_est = `Estimated Target INR Range Based on Indication`,
                 cyp = `Cyp2C9 genotypes`,
@@ -232,7 +233,8 @@ iwpcdat = iwpc %>%
                                                  "OTHER")))),
     height = as.numeric(height),
     weight = as.numeric(weight),
-    sex = if_else(sex == "female", "1", "0")
+    sex = if_else(sex == "female", "1", "0"),
+    metformin = if_else(grepl("metf", ignore.case = T, meds),"1", "0")
     
   ) %>% 
   group_by(race, sex) %>% 
@@ -259,7 +261,7 @@ iwpcdat = iwpc %>%
                 -statin4, -statin5, -statin6,
                 -statin7, -eth_rep, -phenytoin,
                 -rifampin, -carbamaz, -target_est,
-                -height_imp, -weight_imp) 
+                -height_imp, -weight_imp, -meds) 
 
 ## impute with rs2359612
 iwpcdat$vkor_imp = if_else(is.na(iwpcdat$vkor1639) &
@@ -334,6 +336,7 @@ iwpcdat2 = iwpcdat %>%
          race = replace_na(race, "Mixed or Missing"),
          sex = if_else(is.na(sex), "Missing",as.character(sex)),
          sex = as.factor(sex),
+         metformin = as.factor(metformin),
          sqrtdose = sqrt(dosewk),
          dosegroup = case_when(
            dosewk <= 21 ~  "low",

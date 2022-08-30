@@ -463,38 +463,46 @@ hlinedat = dat %>%
 
 country_n <- c(
   'BRA'="Brazil (n = 1,190)",
-  'COL'="Colombia (n = 149)",
-  'PR'="Puerto Rico (n = 258)",
-  'US' = "United States (n = 137)"
+  'COL'="Colombia (n = 300?)",
+  'PR'="Puerto Rico \n(n = 258)",
+  'US' = "United States \n(n = 137)"
 )
 
 p3 = ggplot(dat, aes(name, prop, color = name)) +
+  geom_hline(data = hlinedat, aes(yintercept=prop),
+             color = "gray30") +
   geom_boxplot(width=.25, alpha = .2) + 
   geom_jitter(width = .2, alpha = .1) + 
   theme_minimal()+
-  theme(legend.position = "right",
+  theme(
         panel.grid.minor.x = element_blank(),
         panel.grid.major.x = element_blank(),
         axis.text.x = element_blank(),
-        axis.text.y = element_text(size = 20),
-        axis.title.y = element_text(size = 22),
-        legend.text = element_text(size = 20),
-        strip.text.x = element_text(size = 22),
-        legend.title = element_text(size = 22)) + 
-  labs(x = "", y = "Percentage within 20%", color = "Model") +
-  facet_wrap(.~country, labeller = as_labeller(country_n), nrow = 1)+
-  geom_hline(data = hlinedat, aes(yintercept=prop),
-             color = "gray30") +
-  scale_color_manual(values = c("#F8766D" ,"#D39200", "#93AA00", "#00BA38", "#00C19F" ,"#00B9E3" ,"#619CFF", "#DB72FB", "#FF61C3", "gray30"))
+        # axis.text.y = element_text(size = 20),
+        # axis.title.y = element_text(size = 22),
+        legend.text = element_text(size = 5),
+        # strip.text.x = element_text(size = 22),
+        # legend.title = element_text(size = 22),
+        legend.position = c(.5,.03),
+        legend.key.size = unit(.3, "line"),
+        strip.text = element_text(size = 5)
+        # legend.direction = 'horizontal'
+        
+        ) + 
+  labs(x = "", y = " ", color = " ") +
+  facet_wrap(~country, labeller = as_labeller(country_n), nrow = 1)+
+  scale_color_manual(values = c("#F8766D" ,"#D39200", "#93AA00", "#00BA38", "#00C19F" ,"#00B9E3" ,"#619CFF", "#DB72FB", "#FF61C3", "gray30")) + 
+  guides(color = guide_legend(nrow = 1))+
+  ylim(9,75)
 
 # pdf("../fig2ulla_byrace.pdf", width = 8, height = 5)
 
 p3
-
+p3_country = p3
 # dev.off()
 
 dat3 = dat %>% 
-  group_by( country) %>% 
+  group_by( country, name, replicate) %>% 
   summarise(prop = mean(prop)) %>% 
   as_data_frame() %>% 
   mutate(country = factor(country))
@@ -505,7 +513,7 @@ prop_wilcox = as.data.frame(dat) %>%
   group_by(country) %>% 
   wilcox_test(prop ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
-MAE_wilcox = as.data.frame(dat) %>%
+MAE_wilcox = as.data.frame(dat3) %>%
   group_by(country) %>% 
   wilcox_test(MAE ~ name, paired = TRUE, p.adjust.method = "bonferroni")
 
@@ -516,6 +524,8 @@ write_csv(wilcox_results_ULLA, "../wilcox_results_ULLA_bycountry.csv" )
 ### put the plots together
 library(cowplot)
 
-fig3 = plot_grid(p3, nrow = 1) 
-save_plot("../figure3.png", fig3, base_width = 18, base_height = 8, bg = "transparent")
+p3_country = p3
 
+fig3 = plot_grid(p3, nrow = 1) 
+save_plot("../fig3.tiff", fig3, base_height = 15, base_width = 12.7,units = "cm",  bg = "transparent")
+export::graph2ppt(fig3, file="../fig3.pptx", width=8.4, height = 3.5, bg = "transparent")
